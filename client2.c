@@ -3,7 +3,6 @@
 //Author:   Yao, Imantaka, Valdriz
 //Course:   CECS-327
 //Date:     4-10-19
-//Info: 
 //===============================================================================================
 #include <stdio.h> 
 #include <sys/socket.h> 
