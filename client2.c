@@ -73,9 +73,7 @@ void* tcp_thread(void* arg){
     /*---------------------------------
      Create my data object
     ----------------------------------*/
-    //#pragma pack(4)
     struct ServantData my_data = {.GUID = 0, .my_file = "dog.txt"};
-    //#pragma pack(0)
 
     //printf("\nmy data GUID: %d", my_data.GUID);
     int n = send(sock2, &my_data, sizeof(my_data), 0);
@@ -113,13 +111,13 @@ void* tcp_thread(void* arg){
 }
 
 void* udp_thread(void* arg){  
-	char*  message = "Hello from Client 2"; 
+	char*  message = "                    Hello from Client 2"; 
 
 	/*-------------------------------
      Creating UDP socket 
     --------------------------------*/
 	if ((udp_sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) { 
-		printf("UDP socket 2 failed"); 
+		printf("                    UDP socket 2 failed"); 
 		exit(0); 
 	} 
 
@@ -146,8 +144,8 @@ void* udp_thread(void* arg){
                 MSG_WAITALL, (struct sockaddr *) &serv_addr, 
                 &len); 
     buffer[n] = '\0'; 
-    printf("Got message from UDP Server!\n"); 
-    printf("Server: %s\n", buffer); 
+    printf("                    Got message from UDP Server!\n"); 
+    printf("                    Server: %s\n", buffer); 
 	close(udp_sock); 
 }
 
