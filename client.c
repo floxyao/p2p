@@ -2,8 +2,7 @@
 //HW 4:     P2P
 //Author:   Yao, Imantaka, Valdriz
 //Course:   CECS-327
-//Date:     4-10-19
-//Info:     
+//Date:     4-10-19   
 //===============================================================================================
 #include <stdio.h> 
 #include <sys/socket.h> 
@@ -198,7 +197,6 @@ int main(int argc, char const *argv[])
             printf("Joining Thread Error: %d \n", rc);
         }
     }
-    
     
     return 0;
 }
