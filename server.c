@@ -3,7 +3,7 @@
 //Author:   Yao, Imantaka, Valdriz
 //Course:   CECS-327
 //Date:     4-10-19
-//Info: 
+//Info:     We are essentially making a Napster
 //===============================================================================================
 #include <unistd.h> 
 #include <stdio.h> 
@@ -25,22 +25,22 @@ struct Registry{
     struct ServantData servants[2];
     int size;
 } reg;
-//==========================================================================
+//================================================================================
 // SOCKET STUFF
-//==========================================================================
+//================================================================================
 int     server_fd, udp_fd, new_socket, new_socket2;
-struct  sockaddr_in address, client_address;
-int     addrlen = sizeof(address);
+struct  sockaddr_in server_address, client_address;
+int     addrlen = sizeof(server_address);
 char    msg[MSG_LEN];
 char    buffer[BUF_SIZE] = {0};
 ssize_t n; 
 socklen_t len; 
 
-//==========================================================================
+//================================================================================
 // Concat two strings 
 // "server:  " + <message>
 // "client1: " + <message>
-//==========================================================================
+//================================================================================
 void concat(char* p, char *q){
    int c, d;
    c = 0;
@@ -56,10 +56,10 @@ void concat(char* p, char *q){
    p[c] = '\0';
 }
 
-//==========================================================================
+//================================================================================
 // Function: join
 // Purpose: Registers the clients that join the network
-//==========================================================================
+//================================================================================
 void join(){
     // create object to accept data from clients
     struct ServantData rcv_data;
@@ -96,11 +96,11 @@ void join(){
     printf("\nServants Registered!\n");
 }
 
-//==========================================================================
+//================================================================================
 // Function: publish
 // Purpose: outputs all client GUID's and 
 //          files that each client has
-//==========================================================================
+//================================================================================
 void publish(){
     printf("\nPrinting Servants lists of files: \n");
 
@@ -110,18 +110,17 @@ void publish(){
     printf("\nClient 2 files %s\n", reg.servants[1].my_file);
 }
 
-//==========================================================================
+//================================================================================
 // Function: udp_thread
 // Handles UDP connection/communication with UDP client
 // Send "Datagrams" over network to notify client is still connected
-//==========================================================================
+//================================================================================
 void* udp_thread(void* arg){
     char *hello = "Hello from server"; 
-    struct sockaddr_in servaddr, cliaddr; 
 
-    /*-------------------------------
+    /*-----------------------------------------------------
      Creating UDP socket 
-    --------------------------------*/
+    ------------------------------------------------------*/
     if ( (udp_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
         perror("socket creation failed"); 
         exit(EXIT_FAILURE); 
@@ -129,21 +128,20 @@ void* udp_thread(void* arg){
         printf("\nUDP Socket Created!\n"); 
     }
       
-    memset(&servaddr, 0, sizeof(servaddr)); 
-    memset(&cliaddr, 0, sizeof(cliaddr)); 
+    memset(&server_address, 0, sizeof(server_address)); 
+    memset(&client_address, 0, sizeof(client_address)); 
       
-    /*-------------------------------
+    /*-----------------------------------------------------
      Fill server information
-    --------------------------------*/
-    servaddr.sin_family    = AF_INET; // IPv4 
-    servaddr.sin_addr.s_addr = INADDR_ANY; 
-    servaddr.sin_port = htons(PORT); 
+    ------------------------------------------------------*/
+    server_address.sin_family    = AF_INET; // IPv4 
+    server_address.sin_addr.s_addr = INADDR_ANY; 
+    server_address.sin_port = htons(PORT); 
 
-    /*-------------------------------
+    /*-----------------------------------------------------
       UDP Bind
-    --------------------------------*/
-    if ( bind(udp_fd, (const struct sockaddr *)&servaddr,  
-            sizeof(servaddr)) < 0 ) 
+    ------------------------------------------------------*/
+    if ( bind(udp_fd, (const struct sockaddr *)&server_address, sizeof(server_address)) < 0 ) 
     { 
         perror("bind failed"); 
         exit(EXIT_FAILURE); 
@@ -151,23 +149,19 @@ void* udp_thread(void* arg){
         printf("UDP Socket Connected!\n"); 
     }
       
-    /*-------------------------------
+    /*-----------------------------------------------------
      Wait for message from UDP client
-    --------------------------------*/
+    ------------------------------------------------------*/
     printf("Waiting for message from UDP...\n"); 
-    n = recvfrom(udp_fd, (char *)buffer, BUF_SIZE,  
-                MSG_WAITALL, ( struct sockaddr *) &cliaddr, 
-                &len); 
+    n = recvfrom(udp_fd, (char *)buffer, BUF_SIZE, MSG_WAITALL, (struct sockaddr *) &client_address, &len); 
     buffer[n] = '\0'; 
     printf("Got message from UDP Client!\n");
-    printf("Client : %s\n", buffer); 
+    printf("Client: %s\n", buffer); 
 
-    /*-------------------------------
+    /*-----------------------------------------------------
      Send message back to UDP client
-    --------------------------------*/
-    sendto(udp_fd, (const char *)hello, strlen(hello),  
-        0, (const struct sockaddr *) &cliaddr, 
-            len); 
+    ------------------------------------------------------*/
+    sendto(udp_fd, (const char *)hello, strlen(hello), 0, (const struct sockaddr *) &client_address, len); 
     printf("Hello message sent.\n");  
       
 
@@ -178,28 +172,28 @@ void* udp_thread(void* arg){
     close(udp_fd); 
 }
 
-//==========================================================================
+//================================================================================
 // Func: tcp_thread
 // Handles TCP socket connection/communication with TCP client
-//==========================================================================
+//================================================================================
 void* tcp_thread(void* arg){
 
-    /*-------------------------------
+    /*--------------------------------------------------------------------------
      Creating TCP socket 
-    --------------------------------*/
+    ---------------------------------------------------------------------------*/
 	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
 	{ 
 		perror("TCP socket failed"); 
 		exit(EXIT_FAILURE); 
     }
-	address.sin_family = AF_INET;
-	address.sin_addr.s_addr = INADDR_ANY; 
-	address.sin_port = htons( PORT ); 
+	server_address.sin_family = AF_INET;
+	server_address.sin_addr.s_addr = INADDR_ANY; 
+	server_address.sin_port = htons( PORT ); 
 	
-	/*-------------------------------------------------------------------
+	/*--------------------------------------------------------------------------
       TCP Bind - once you have a socket, bind() it to a port on your machine
-    -------------------------------------------------------------------*/
-	if (bind(server_fd, (struct sockaddr *)&address, sizeof(address))<0)
+    ---------------------------------------------------------------------------*/
+	if (bind(server_fd, (struct sockaddr *)&server_address, sizeof(server_address))<0)
 	{ 
 		perror("tcp bind failed"); 
 		exit(EXIT_FAILURE); 
@@ -220,7 +214,7 @@ void* tcp_thread(void* arg){
     /*---------------------------------
      Accept client 1 connection
     ----------------------------------*/
-	if ((new_socket = accept(server_fd, (struct sockaddr *)&address, 
+	if ((new_socket = accept(server_fd, (struct sockaddr *)&server_address, 
 					(socklen_t*)&addrlen)) < 0)
 	{ 
 		perror("accept error 1\n"); 
@@ -233,7 +227,7 @@ void* tcp_thread(void* arg){
     /*----------------------------------
      Accept client 2 connection
     -----------------------------------*/
-    if ((new_socket2 = accept(server_fd, (struct sockaddr *)&address, 
+    if ((new_socket2 = accept(server_fd, (struct sockaddr *)&server_address, 
 					(socklen_t*)&addrlen)) < 0)
 	{ 
 		perror("accept error 2\n"); 
@@ -272,16 +266,16 @@ void* tcp_thread(void* arg){
         // memset(msg, 0, MSG_LEN);
         printf("%s", buffer);                         //display message
         bzero(buffer, sizeof(buffer));                //flush buffer
-        sleep(1);                                     //introduce delay or else loops too fast (?)                                  
+        sleep(3);                                     //introduce delay or else loops too fast (?)                                  
     }
 }
 
-//==========================================================================
+//================================================================================
 // Main connects sockets, creates and join threads
 // notes: AF_INET = domain of socket
 //        SOCK_STREAM = type of socket (TCP/UDP)
 //        0 = default protocol, TCP   */
-//==========================================================================
+//================================================================================
 int main(int argc, char const *argv[])
 {
     /*-------------------------------
