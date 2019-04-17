@@ -102,12 +102,13 @@ void join(){
 //          files that each client has
 //================================================================================
 void publish(){
-    printf("\nPrinting Servants lists of files: \n");
-
+    printf("\nPrinting Servants lists of files:");
+    printf("\n====================================\n");
     printf("Client 1 GUID: %d",   reg.servants[0].GUID);
     printf("\nClient 1 files %s\n", reg.servants[0].my_file);
     printf("\nClient 2 GUID: %d",   reg.servants[1].GUID);
-    printf("\nClient 2 files %s\n", reg.servants[1].my_file);
+    printf("\nClient 2 files %s", reg.servants[1].my_file);
+    printf("\n====================================\n");
 }
 
 //================================================================================
@@ -116,16 +117,16 @@ void publish(){
 // Send "Datagrams" over network to notify client is still connected
 //================================================================================
 void* udp_thread(void* arg){
-    char *hello = "Hello from server"; 
+    char *hello = "                    Hello from server"; 
 
     /*-----------------------------------------------------
      Creating UDP socket 
     ------------------------------------------------------*/
     if ( (udp_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
-        perror("socket creation failed"); 
+        perror("                    Socket creation failed"); 
         exit(EXIT_FAILURE); 
     } else{
-        printf("\nUDP Socket Created!\n"); 
+        printf("\n                    UDP Socket Created!\n"); 
     }
       
     memset(&server_address, 0, sizeof(server_address)); 
@@ -143,31 +144,31 @@ void* udp_thread(void* arg){
     ------------------------------------------------------*/
     if ( bind(udp_fd, (const struct sockaddr *)&server_address, sizeof(server_address)) < 0 ) 
     { 
-        perror("bind failed"); 
+        perror("                    UDP bind failed"); 
         exit(EXIT_FAILURE); 
     } else{
-        printf("UDP Socket Connected!\n"); 
+        printf("                    UDP Socket Connected!\n"); 
     }
       
     /*-----------------------------------------------------
      Wait for message from UDP client
     ------------------------------------------------------*/
-    printf("Waiting for message from UDP...\n"); 
+    printf("                    Waiting for message from UDP...\n"); 
     n = recvfrom(udp_fd, (char *)buffer, BUF_SIZE, MSG_WAITALL, (struct sockaddr *) &client_address, &len); 
     buffer[n] = '\0'; 
-    printf("Got message from UDP Client!\n");
-    printf("Client: %s\n", buffer); 
+    printf("                    Got message from UDP Client!\n");
+    printf("                    Client: %s\n", buffer); 
 
     /*-----------------------------------------------------
      Send message back to UDP client
     ------------------------------------------------------*/
     sendto(udp_fd, (const char *)hello, strlen(hello), 0, (const struct sockaddr *) &client_address, len); 
-    printf("Hello message sent.\n");  
+    printf("                    Hello message sent.\n");  
       
 
     for(;;){
         sleep(3);
-        printf("\nServer UDP Created!\n");
+        printf("\n                    UDP Thread!\n");
     }
     close(udp_fd); 
     pthread_exit(NULL);
@@ -187,6 +188,9 @@ void* tcp_thread(void* arg){
 		perror("TCP socket failed"); 
 		exit(EXIT_FAILURE); 
     }
+    else{
+        printf("\nTCP Socket Created!\n");
+    }
 	server_address.sin_family = AF_INET;
 	server_address.sin_addr.s_addr = INADDR_ANY; 
 	server_address.sin_port = htons( PORT ); 
@@ -199,9 +203,6 @@ void* tcp_thread(void* arg){
 		perror("tcp bind failed"); 
 		exit(EXIT_FAILURE); 
     }
-    else{
-        printf("\nTCP Connected!\n");
-    }
 
     /*-------------------------------------------------------------------------
       TCP Listen - original socket server_fd listens for more incoming connections
@@ -211,6 +212,9 @@ void* tcp_thread(void* arg){
 		perror("listen error"); 
 		exit(EXIT_FAILURE); 
 	}
+    else{
+        printf("\nTCP Listening...\n");
+    }
 
     /*---------------------------------
      Accept client 1 connection
