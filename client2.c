@@ -16,19 +16,15 @@
 #define SENDER_NAME "client 2: "
 #define IP_ADDR "127.0.0.1"
 #define PORT 8080
-#define NUM_THREADS 2
+#define NUM_THREADS 3
 #define MSG_LEN 100
 #define BUF_SIZE 1024
-
-//GLOBAL
-
 
 //==========================================================================
 // SOCKET STUFF
 //==========================================================================
-int       sock2;
-struct    sockaddr_in client_addr2;
-struct    sockaddr_in serv_addr;     
+int       sock2, udp_sock, len, n;
+struct    sockaddr_in client_addr2, serv_addr;     
 socklen_t CLADDR_LEN = sizeof(client_addr2);
 int       inet_pton(); //get rid of warning
 char      msg[MSG_LEN];
@@ -73,7 +69,7 @@ void* input_thread(void* arg){
 // *note sleep() is used because without it, the loop appears to be too fast
 // and messages aren't being sent correctly
 //==========================================================================
-void* connection_thread(void* arg){
+void* tcp_thread(void* arg){
     /*---------------------------------
      Create my data object
     ----------------------------------*/
@@ -114,6 +110,45 @@ void* connection_thread(void* arg){
     close(sock2); 
     pthread_exit(NULL);
     return NULL; //silence
+}
+
+void* udp_thread(void* arg){  
+	char*  message = "Hello from Client 2"; 
+
+	/*-------------------------------
+     Creating UDP socket 
+    --------------------------------*/
+	if ((udp_sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) { 
+		printf("UDP socket 2 failed"); 
+		exit(0); 
+	} 
+
+	memset(&serv_addr, 0, sizeof(serv_addr)); 
+
+	/*-------------------------------
+     Fill server information
+    --------------------------------*/
+	serv_addr.sin_family = AF_INET; 
+	serv_addr.sin_port = htons(PORT); 
+	serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1"); 
+
+	/*-------------------------------
+     Send message back to UDP server
+    --------------------------------*/
+	sendto(udp_sock, (const char*)message, strlen(message), 
+		0, (const struct sockaddr*)&serv_addr, 
+		sizeof(serv_addr)); 
+
+    /*-------------------------------
+     Wait for message from UDP server
+    --------------------------------*/
+    n = recvfrom(sock2, (char *)buffer, BUF_SIZE,  
+                MSG_WAITALL, (struct sockaddr *) &serv_addr, 
+                &len); 
+    buffer[n] = '\0'; 
+    printf("Got message from UDP Server!\n"); 
+    printf("Server: %s\n", buffer); 
+	close(udp_sock); 
 }
 
 //==========================================================================
@@ -185,7 +220,12 @@ int main(int argc, char const *argv[])
         exit(-1);
     }
     //printf("main(): creating message thread \n");
-    rc = pthread_create(&threads[1], NULL, &connection_thread, NULL);
+    rc = pthread_create(&threads[1], NULL, &tcp_thread, NULL);
+    if(rc){
+        printf("Error: unable to create thread, %d \n", rc);
+        exit(-1);
+    }
+    rc = pthread_create(&threads[2], NULL, &udp_thread, NULL);
     if(rc){
         printf("Error: unable to create thread, %d \n", rc);
         exit(-1);
