@@ -92,6 +92,21 @@ void* connection_thread(void* arg){
     recv(sock2, &my_data, sizeof(my_data), 0);
     printf("Client 2 received: %d\n", my_data.GUID);
 
+    /*-----------------------------------
+     Change socket to non-blocking
+        needs to happen after registration
+    -----------------------------------*/
+    fcntl(sock2, F_SETFL, O_NONBLOCK);
+
+    for(;;){
+        //int valread = recv( sock , buffer, BUF_SIZE, 0);
+        //printf("Client 2 sending loop\n");
+        send(sock2 , msg , strlen(msg) , 0);
+        memset(msg, 0, MSG_LEN);                      //clear message
+        printf("%s",buffer);                          //display message
+        bzero(buffer, sizeof(buffer));                //flush buffer
+        sleep(1);                                     //introduce delay or else loops too fast (?) 
+    }
     //-------------SEARCH--------------------
     // have a switch statement here
     // select search, then send it over
@@ -158,11 +173,6 @@ int main(int argc, char const *argv[])
         printf("\nIP: %s",IP_ADDR);
         printf("\nPORT: %d\n\n",PORT);
     }
-    
-    /*-----------------------------------
-     Change the socket to non-blocking
-    -----------------------------------*/
-    //fcntl(sock2, F_SETFL, O_NONBLOCK);
     
     /*---------------------
      Create/Join threads
