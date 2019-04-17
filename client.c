@@ -80,12 +80,27 @@ void* connection_thread(void* arg){
 
     // send object
     int n = send(sock, &my_data, sizeof(my_data), 0);
-    printf("Client 1 SENT\n");
     bzero(buffer, sizeof(buffer)); // flush
 
     printf("Client 1 WAITING:\n");
     recv(sock, &my_data, sizeof(my_data), 0);
     printf("Client 1 received: %d\n", my_data.GUID);
+
+    /*-----------------------------------
+     Change socket to non-blocking
+        needs to happen after registration
+    -----------------------------------*/
+    fcntl(sock, F_SETFL, O_NONBLOCK);
+
+    for(;;){
+        //int valread = recv( sock , buffer, BUF_SIZE, 0);
+        //printf("Client 1 sending loop\n");
+        send(sock , msg , strlen(msg) , 0);
+        memset(msg, 0, MSG_LEN);                      //clear message
+        printf("%s",buffer);                          //display message
+        bzero(buffer, sizeof(buffer));                //flush buffer
+        sleep(1);                                     //introduce delay or else loops too fast (?) 
+    }
 
     //-------------SEARCH--------------------
     // have a switch statement here
@@ -105,34 +120,6 @@ void* connection_thread(void* arg){
 //==========================================================================
 int main(int argc, char const *argv[]) 
 {
-    // int sockfd;
-    //     // Creating socket file descriptor 
-    // if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
-    //     perror("socket creation failed"); 
-    //     exit(EXIT_FAILURE); 
-    // } 
-    // else{
-    //     printf("\nClient UDP Connected!\n");
-    // }
-
-    // char *hello = "Hello from client"; 
-    // int n, len, MSG_CONFIRM; 
-      
-    // sendto(sockfd, (const char *)hello, strlen(hello), 
-    //     MSG_CONFIRM, (const struct sockaddr *) &serv_addr,  
-    //         sizeof(serv_addr)); 
-    // printf("Hello message sent.\n"); 
-          
-    // n = recvfrom(sockfd, (char *)buffer, BUF_SIZE,  
-    //             MSG_WAITALL, (struct sockaddr *) &serv_addr, 
-    //             &len); 
-    // buffer[n] = '\0'; 
-    // printf("Server : %s\n", buffer); 
-  
-    // close(sockfd); 
-
-
-
     /*---------------------------------
      Creating socket file descriptor
     ----------------------------------*/
