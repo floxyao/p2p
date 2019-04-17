@@ -3,7 +3,7 @@
 //Author:   Yao, Imantaka, Valdriz
 //Course:   CECS-327
 //Date:     4-10-19
-//Info:     We are essentially making a Napster
+//Info:     We are essentially making Napster
 //===============================================================================================
 #include <unistd.h> 
 #include <stdio.h> 
@@ -28,12 +28,12 @@ struct Registry{
 //================================================================================
 // SOCKET STUFF
 //================================================================================
-int     server_fd, udp_fd, new_socket, new_socket2;
-struct  sockaddr_in server_address, client_address;
-int     addrlen = sizeof(server_address);
-char    msg[MSG_LEN];
-char    buffer[BUF_SIZE] = {0};
-ssize_t n; 
+int       server_fd, udp_fd, new_socket, new_socket2;
+struct    sockaddr_in server_address, client_address;
+int       addrlen = sizeof(server_address);
+char      msg[MSG_LEN];
+char      buffer[BUF_SIZE] = {0};
+ssize_t   n; 
 socklen_t len; 
 
 //================================================================================
@@ -170,6 +170,7 @@ void* udp_thread(void* arg){
         printf("\nServer UDP Created!\n");
     }
     close(udp_fd); 
+    pthread_exit(NULL);
 }
 
 //================================================================================
@@ -221,7 +222,7 @@ void* tcp_thread(void* arg){
 		exit(EXIT_FAILURE); 
 	}
     else{
-        printf("\nSocket 1 Connected!");
+        printf("\nSocket 1 Connected!\n");
     }
 
     /*----------------------------------
@@ -234,7 +235,7 @@ void* tcp_thread(void* arg){
 		exit(EXIT_FAILURE); 
 	}
     else{
-        printf("\nSocket 2 Connected!");
+        printf("\nSocket 2 Connected!\n");
     }
 
     /*----------------------------------
@@ -268,6 +269,8 @@ void* tcp_thread(void* arg){
         bzero(buffer, sizeof(buffer));                //flush buffer
         sleep(3);                                     //introduce delay or else loops too fast (?)                                  
     }
+
+    pthread_exit(NULL);
 }
 
 //================================================================================
@@ -281,9 +284,8 @@ int main(int argc, char const *argv[])
     /*-------------------------------
      Create UDP and TCP threads
     --------------------------------*/
-    int rc;
     pthread_t threads[NUM_THREADS];
-    rc = pthread_create(&threads[0], NULL, &tcp_thread, NULL);
+    int rc = pthread_create(&threads[0], NULL, &tcp_thread, NULL);
     if(rc){
         printf("Error: unable to create thread, %d \n", rc);
         exit(-1);
