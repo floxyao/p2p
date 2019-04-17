@@ -16,7 +16,7 @@
 #include "struct.h"
 #define SENDER_NAME "server: "
 #define PORT 8080
-#define NUM_CLIENTS 2
+#define NUM_THREADS 2
 #define MSG_LEN 100
 #define BUF_SIZE 1024
 
@@ -28,11 +28,13 @@ struct Registry{
 //==========================================================================
 // SOCKET STUFF
 //==========================================================================
-int     server_fd, new_socket, new_socket2;
+int     server_fd, udp_fd, new_socket, new_socket2;
 struct  sockaddr_in address, client_address;
 int     addrlen = sizeof(address);
 char    msg[MSG_LEN];
 char    buffer[BUF_SIZE] = {0};
+ssize_t n; 
+socklen_t len; 
 
 //==========================================================================
 // Concat two strings 
@@ -96,57 +98,94 @@ void join(){
 
 //==========================================================================
 // Function: publish
-// Purpose: outputs information of the clients
+// Purpose: outputs all client GUID's and 
+//          files that each client has
 //==========================================================================
 void publish(){
     printf("\nPrinting Servants lists of files: \n");
-    //#pragma pack(4)
+
     printf("Client 1 GUID: %d",   reg.servants[0].GUID);
     printf("\nClient 1 files %s\n", reg.servants[0].my_file);
     printf("\nClient 2 GUID: %d",   reg.servants[1].GUID);
     printf("\nClient 2 files %s\n", reg.servants[1].my_file);
-    //#pragma pack(0)
 }
 
 //==========================================================================
-// Create UDP Socket
+// Function: udp_thread
+// Handles UDP connection/communication with UDP client
 // Send "Datagrams" over network to notify client is still connected
 //==========================================================================
-void create_UDP_connection(){
-    // int sockfd;
-    // /*-------------------------------
-    //  Creating UDP socket file descriptor
-    // --------------------------------*/
-    // if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
-    //     perror("socket creation failed"); 
-    //     exit(EXIT_FAILURE); 
-    // }else{
-    //     printf("\nServer UDP Created!\n");
-    // }
+void* udp_thread(void* arg){
+    char *hello = "Hello from server"; 
+    struct sockaddr_in servaddr, cliaddr; 
 
-    // if ( bind(sockfd, (const struct sockaddr *)&address,  
-    //         sizeof(address)) < 0 ) 
-    // { 
-    //     perror("bind failed"); 
-    //     exit(EXIT_FAILURE); 
-    // } 
+    /*-------------------------------
+     Creating UDP socket 
+    --------------------------------*/
+    if ( (udp_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
+        perror("socket creation failed"); 
+        exit(EXIT_FAILURE); 
+    } else{
+        printf("\nUDP Socket Created!\n"); 
+    }
       
-    // char *hello = "Hello from server"; 
-    // int len, n, MSG_CONFIRM; 
-    // n = recvfrom(sockfd, (char *)buffer, BUF_SIZE,  
-    //             MSG_WAITALL, ( struct sockaddr *) &client_address, 
-    //             &len); 
-    // buffer[n] = '\0'; 
-    // printf("Client : %s\n", buffer); 
-    // sendto(sockfd, (const char *)hello, strlen(hello),  
-    //     MSG_CONFIRM, (const struct sockaddr *) &client_address, 
-    //         len); 
-    // printf("Hello message sent.\n");  
+    memset(&servaddr, 0, sizeof(servaddr)); 
+    memset(&cliaddr, 0, sizeof(cliaddr)); 
+      
+    /*-------------------------------
+     Fill server information
+    --------------------------------*/
+    servaddr.sin_family    = AF_INET; // IPv4 
+    servaddr.sin_addr.s_addr = INADDR_ANY; 
+    servaddr.sin_port = htons(PORT); 
+
+    /*-------------------------------
+      UDP Bind
+    --------------------------------*/
+    if ( bind(udp_fd, (const struct sockaddr *)&servaddr,  
+            sizeof(servaddr)) < 0 ) 
+    { 
+        perror("bind failed"); 
+        exit(EXIT_FAILURE); 
+    } else{
+        printf("UDP Socket Connected!\n"); 
+    }
+      
+    /*-------------------------------
+     Wait for message from UDP client
+    --------------------------------*/
+    printf("Waiting for message from UDP...\n"); 
+    n = recvfrom(udp_fd, (char *)buffer, BUF_SIZE,  
+                MSG_WAITALL, ( struct sockaddr *) &cliaddr, 
+                &len); 
+    buffer[n] = '\0'; 
+    printf("Got message from UDP Client!\n");
+    printf("Client : %s\n", buffer); 
+
+    /*-------------------------------
+     Send message back to UDP client
+    --------------------------------*/
+    sendto(udp_fd, (const char *)hello, strlen(hello),  
+        0, (const struct sockaddr *) &cliaddr, 
+            len); 
+    printf("Hello message sent.\n");  
+      
+
+    for(;;){
+        sleep(3);
+        printf("\nServer UDP Created!\n");
+    }
+    close(udp_fd); 
 }
 
-void create_tcp(){
+//==========================================================================
+// Func: tcp_thread
+// Handles TCP socket connection/communication with TCP client
+//==========================================================================
+void* tcp_thread(void* arg){
+
     /*-------------------------------
-     Creating TCP socket file descriptor
+     Creating TCP socket 
     --------------------------------*/
 	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
 	{ 
@@ -158,19 +197,19 @@ void create_tcp(){
 	address.sin_port = htons( PORT ); 
 	
 	/*-------------------------------------------------------------------
-      Bind - once you have a socket, bind() it to a port on your machine
+      TCP Bind - once you have a socket, bind() it to a port on your machine
     -------------------------------------------------------------------*/
 	if (bind(server_fd, (struct sockaddr *)&address, sizeof(address))<0)
 	{ 
-		perror("bind failed"); 
+		perror("tcp bind failed"); 
 		exit(EXIT_FAILURE); 
     }
     else{
-        printf("\nConnected!\n");
+        printf("\nTCP Connected!\n");
     }
 
     /*-------------------------------------------------------------------------
-      Listen - original socket server_fd listens for more incoming connections
+      TCP Listen - original socket server_fd listens for more incoming connections
     -------------------------------------------------------------------------*/
 	if (listen(server_fd, 3) < 0) 
 	{ 
@@ -178,18 +217,9 @@ void create_tcp(){
 		exit(EXIT_FAILURE); 
 	}
 
-    /*-------------------------------------------------------------
-     Accept - someone is waiting on you to accept their connection
-     new_socket = the connection between you and the client
-
-     And create threads
-    --------------------------------------------------------------*/
-    pthread_t threads[NUM_CLIENTS];
-    int num_thread = 0;
-
-    /*---------------------------
+    /*---------------------------------
      Accept client 1 connection
-    ----------------------------*/
+    ----------------------------------*/
 	if ((new_socket = accept(server_fd, (struct sockaddr *)&address, 
 					(socklen_t*)&addrlen)) < 0)
 	{ 
@@ -197,15 +227,12 @@ void create_tcp(){
 		exit(EXIT_FAILURE); 
 	}
     else{
-        /*---------------------------
-         Socket 1 connected
-        ----------------------------*/
         printf("\nSocket 1 Connected!");
     }
 
-    /*---------------------------
+    /*----------------------------------
      Accept client 2 connection
-    ----------------------------*/
+    -----------------------------------*/
     if ((new_socket2 = accept(server_fd, (struct sockaddr *)&address, 
 					(socklen_t*)&addrlen)) < 0)
 	{ 
@@ -213,46 +240,29 @@ void create_tcp(){
 		exit(EXIT_FAILURE); 
 	}
     else{
-        /*---------------------------
-         Socket 2 connected
-        ----------------------------*/
         printf("\nSocket 2 Connected!");
     }
 
-    /*-----------------------------------------
-     Change server socket to non-blocking
-        client1 & 2 sockets shouldn't be non-block
-        because they need to wait for server to 
-        assign them a GUID
-    ------------------------------------------*/
-    //fcntl(new_socket2, F_SETFL, O_NONBLOCK);
-    //fcntl(new_socket, F_SETFL, O_NONBLOCK);
-    fcntl(server_fd, F_SETFL, O_NONBLOCK);
-}
-
-//==========================================================================
-// Main connects sockets, creates and join threads
-// notes: AF_INET = domain of socket
-//        SOCK_STREAM = type of socket (TCP/UDP)
-//        0 = default protocol, TCP   */
-//==========================================================================
-int main(int argc, char const *argv[])
-{
-    create_tcp();
-    
-    /*---------------------------
+    /*----------------------------------
      Join (Register Clients)
-    ----------------------------*/
+    -----------------------------------*/
     join();
-    printf("joined\n");  
 
-    /*---------------------------
+    /*----------------------------------
      Publish 
-    ----------------------------*/
+    -----------------------------------*/
     publish();
-    printf("published\n"); 
+
+    /*-----------------------------------
+     Change socket to non-blocking
+        needs to happen after registration
+    -----------------------------------*/
+    fcntl(new_socket2, F_SETFL, O_NONBLOCK);
+    fcntl(new_socket, F_SETFL, O_NONBLOCK);
+    fcntl(server_fd, F_SETFL, O_NONBLOCK);
 
     for(;;){
+        printf("\nTCP Thread\n");
         // okay i registered the clients, waiting for a message from clients
         int valread = recv( new_socket , buffer, BUF_SIZE, 0);
         int valread2 = recv( new_socket2 , buffer, BUF_SIZE, 0);
@@ -264,14 +274,47 @@ int main(int argc, char const *argv[])
         bzero(buffer, sizeof(buffer));                //flush buffer
         sleep(1);                                     //introduce delay or else loops too fast (?)                                  
     }
+}
+
+//==========================================================================
+// Main connects sockets, creates and join threads
+// notes: AF_INET = domain of socket
+//        SOCK_STREAM = type of socket (TCP/UDP)
+//        0 = default protocol, TCP   */
+//==========================================================================
+int main(int argc, char const *argv[])
+{
+    /*-------------------------------
+     Create UDP and TCP threads
+    --------------------------------*/
+    int rc;
+    pthread_t threads[NUM_THREADS];
+    rc = pthread_create(&threads[0], NULL, &tcp_thread, NULL);
+    if(rc){
+        printf("Error: unable to create thread, %d \n", rc);
+        exit(-1);
+    }
+    rc = pthread_create(&threads[1], NULL, &udp_thread, NULL);
+    if(rc){
+        printf("Error: unable to create thread, %d \n", rc);
+        exit(-1);
+    }
+
+    /*-------------------------------
+     Join UDP and TCP threads
+    --------------------------------*/
+    for(int i = 0; i < NUM_THREADS; i++){
+        rc = pthread_join(threads[i], NULL);
+        if(rc){
+            printf("Joining Thread Error: %d \n", rc);
+        }
+    }
+    for(;;){
+        printf("Joining Thread Error: \n");
+    }
 
     close(new_socket);
     close(new_socket2);
 
     return 0;
 }
-
-    // #pragma pack(4)
-    // printf("\nClient 1 GUID: %d", rcv_data.GUID);
-    // printf("\nClient 1 files %s\n", rcv_data.my_file);
-    // #pragma pack(0)
