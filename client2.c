@@ -73,7 +73,9 @@ void* tcp_thread(void* arg){
     /*---------------------------------
      Create my data object
     ----------------------------------*/
+    //#pragma pack(4)
     struct ServantData my_data = {.GUID = 0, .my_file = "dog.txt"};
+    //#pragma pack(0)
 
     //printf("\nmy data GUID: %d", my_data.GUID);
     int n = send(sock2, &my_data, sizeof(my_data), 0);
@@ -81,7 +83,7 @@ void* tcp_thread(void* arg){
 
     //struct ServantData rcv_data;
 
-    printf("Client 2 WAITING:\n");
+    //printf("Client 2 WAITING:\n");
     recv(sock2, &my_data, sizeof(my_data), 0);
     printf("Client 2 received: %d\n", my_data.GUID);
 
@@ -110,16 +112,25 @@ void* tcp_thread(void* arg){
     return NULL; //silence
 }
 
+//==========================================================================
+// Send/Receive Socket
+// Sends and receives messages to client. 
+// *note sleep() is used because without it, the loop appears to be too fast
+// and messages aren't being sent correctly
+//==========================================================================
 void* udp_thread(void* arg){  
-	char*  message = "                    Hello from Client 2"; 
+	char*  message = "Hello from Client 2"; 
 
 	/*-------------------------------
      Creating UDP socket 
     --------------------------------*/
 	if ((udp_sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) { 
-		printf("                    UDP socket 2 failed"); 
+		printf("UDP socket 2 failed"); 
 		exit(0); 
 	} 
+    else{
+        printf("\nClient 2 UDP socket connected\n"); 
+    }
 
 	memset(&serv_addr, 0, sizeof(serv_addr)); 
 
@@ -133,19 +144,27 @@ void* udp_thread(void* arg){
 	/*-------------------------------
      Send message back to UDP server
     --------------------------------*/
-	sendto(udp_sock, (const char*)message, strlen(message), 
-		0, (const struct sockaddr*)&serv_addr, 
-		sizeof(serv_addr)); 
+	// sendto(udp_sock, (const char*)message, strlen(message), 
+	// 	0, (const struct sockaddr*)&serv_addr, 
+	// 	sizeof(serv_addr)); 
+    // printf("2 Message sent.\n");
 
     /*-------------------------------
      Wait for message from UDP server
     --------------------------------*/
-    n = recvfrom(sock2, (char *)buffer, BUF_SIZE,  
-                MSG_WAITALL, (struct sockaddr *) &serv_addr, 
-                &len); 
-    buffer[n] = '\0'; 
-    printf("                    Got message from UDP Server!\n"); 
-    printf("                    Server: %s\n", buffer); 
+    // n = recvfrom(udp_sock, (char *)buffer, BUF_SIZE,  
+    //             MSG_WAITALL, (struct sockaddr *) &serv_addr, 
+    //             &len); 
+    // buffer[n] = '\0'; 
+    // printf("Got message from UDP Server 2!\n"); 
+    // printf("Server: %s\n", buffer); 
+    for(;;){
+        sendto(udp_sock, (const char*)message, strlen(message), 
+            0, (const struct sockaddr*)&serv_addr, 
+            sizeof(serv_addr)); 
+        printf("2 Message sent.\n");
+        sleep(3);
+    }
 	close(udp_sock); 
 }
 
