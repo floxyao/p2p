@@ -57,6 +57,21 @@ void concat(char* p, char *q){
 }
 
 //================================================================================
+// Function: publish
+// Purpose: outputs all client GUID's and 
+//          files that each client has
+//================================================================================
+void publish(int client_no){
+    // printf("\nPrinting Servants lists of files:");
+    printf("\n====================================\n");
+    printf("Client 1 GUID: %d",   reg.servants[client_no].GUID);
+    printf("\nClient 1 files %s\n", reg.servants[client_no].my_file);
+    // printf("\nClient 2 GUID: %d",   reg.servants[1].GUID);
+    // printf("\nClient 2 files %s", reg.servants[1].my_file);
+    printf("====================================\n");
+}
+
+//================================================================================
 // Function: join
 // Purpose: Registers the clients that join the network
 //================================================================================
@@ -69,11 +84,15 @@ void join(){
      *-----------------------------*/
     // get object from client 1
     recv(new_socket , &rcv_data, sizeof(rcv_data), 0);
+    rcv_data.GUID = reg.size+1;
+    reg.servants[reg.size] = rcv_data;
+    publish(reg.size);
+    
     reg.size++;
 
     // generate GUID (just size for now)
-    rcv_data.GUID = reg.size;
-    reg.servants[0] = rcv_data;
+    //rcv_data.GUID = reg.size;
+    //reg.servants[0] = rcv_data;
 
     // send back GUID to client 1
     int n = send(new_socket, &rcv_data, sizeof(rcv_data), 0);
@@ -84,11 +103,14 @@ void join(){
      *-----------------------------*/
     // get object from client 2
     recv(new_socket2 , &rcv_data, sizeof(rcv_data), 0);
+    rcv_data.GUID = reg.size+1;
+    reg.servants[reg.size] = rcv_data;
+    publish(reg.size);
+
     reg.size++;
 
     // generate GUID
-    rcv_data.GUID = reg.size;
-    reg.servants[1] = rcv_data;
+    //reg.servants[1] = rcv_data;
 
     // send back GUID to client 2
     int m = send(new_socket2, &rcv_data, sizeof(rcv_data), 0);
@@ -97,38 +119,27 @@ void join(){
 }
 
 //================================================================================
-// Function: publish
-// Purpose: outputs all client GUID's and 
-//          files that each client has
-//================================================================================
-void publish(){
-    printf("\nPrinting Servants lists of files:");
-    printf("\n====================================\n");
-    printf("Client 1 GUID: %d",   reg.servants[0].GUID);
-    printf("\nClient 1 files %s\n", reg.servants[0].my_file);
-    printf("\nClient 2 GUID: %d",   reg.servants[1].GUID);
-    printf("\nClient 2 files %s", reg.servants[1].my_file);
-    printf("\n====================================\n");
-}
-
-//================================================================================
 // Function: udp_thread
 // Handles UDP connection/communication with UDP client
 // Send "Datagrams" over network to notify client is still connected
 //================================================================================
 void* udp_thread(void* arg){
-    char *hello = "                    Hello from server"; 
+    char *hello = "Hello from server"; 
 
     /*-----------------------------------------------------
      Creating UDP socket 
     ------------------------------------------------------*/
     if ( (udp_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
-        perror("                    Socket creation failed"); 
+        perror("                    socket creation failed"); 
         exit(EXIT_FAILURE); 
     } else{
         printf("\n                    UDP Socket Created!\n"); 
     }
-      
+    // struct timeval read_timeout;
+    // read_timeout.tv_sec = 0;
+    // read_timeout.tv_usec = 10;
+    // setsockopt(udp_fd, SOL_SOCKET, SO_RCVTIMEO, &read_timeout, sizeof read_timeout);
+
     memset(&server_address, 0, sizeof(server_address)); 
     memset(&client_address, 0, sizeof(client_address)); 
       
@@ -144,31 +155,23 @@ void* udp_thread(void* arg){
     ------------------------------------------------------*/
     if ( bind(udp_fd, (const struct sockaddr *)&server_address, sizeof(server_address)) < 0 ) 
     { 
-        perror("                    UDP bind failed"); 
+        perror("                    bind failed"); 
         exit(EXIT_FAILURE); 
-    } else{
-        printf("                    UDP Socket Connected!\n"); 
     }
-      
+    
     /*-----------------------------------------------------
      Wait for message from UDP client
     ------------------------------------------------------*/
-    printf("                    Waiting for message from UDP...\n"); 
-    n = recvfrom(udp_fd, (char *)buffer, BUF_SIZE, MSG_WAITALL, (struct sockaddr *) &client_address, &len); 
-    buffer[n] = '\0'; 
-    printf("                    Got message from UDP Client!\n");
-    printf("                    Client: %s\n", buffer); 
-
-    /*-----------------------------------------------------
-     Send message back to UDP client
-    ------------------------------------------------------*/
-    sendto(udp_fd, (const char *)hello, strlen(hello), 0, (const struct sockaddr *) &client_address, len); 
-    printf("                    Hello message sent.\n");  
-      
-
     for(;;){
+        //printf("                    Waiting for message from UDP...\n"); 
+        n = recvfrom(udp_fd, (char *)buffer, BUF_SIZE, MSG_WAITALL, (struct sockaddr *) &client_address, &len); 
+        buffer[n] = '\0'; 
+        //printf("                    Got message from UDP Client!\n");
+        printf("                    UDP Client: %s\n", buffer); 
+
+        bzero(buffer, sizeof(buffer));
         sleep(3);
-        printf("\n                    UDP Thread!\n");
+        //printf("\n                    udp .\n");
     }
     close(udp_fd); 
     pthread_exit(NULL);
@@ -226,12 +229,32 @@ void* tcp_thread(void* arg){
 		exit(EXIT_FAILURE); 
 	}
     else{
-        printf("\nSocket 1 Connected!\n");
+        printf("\nTCP Socket 1 Connected!\n");
+
+        /*---------------------------------
+           JOIN & PUBLISH
+        ----------------------------------*/
+        struct ServantData rcv_data;
+
+        // GET OBJ. FROM CLIENT 1 
+        recv(new_socket , &rcv_data, sizeof(rcv_data), 0);
+        rcv_data.GUID = reg.size+1;
+        reg.servants[reg.size] = rcv_data;
+
+        // reg.size = how many clients we have in the registry
+        // i'm using reg.size as each client's GUID since it's unique
+        publish(reg.size);
+        
+        reg.size++;
+
+        // SEND BACK GUID TO CLIENT 1
+        int n = send(new_socket, &rcv_data, sizeof(rcv_data), 0);
     }
 
     /*----------------------------------
      Accept client 2 connection
     -----------------------------------*/
+
     if ((new_socket2 = accept(server_fd, (struct sockaddr *)&server_address, 
 					(socklen_t*)&addrlen)) < 0)
 	{ 
@@ -239,18 +262,38 @@ void* tcp_thread(void* arg){
 		exit(EXIT_FAILURE); 
 	}
     else{
-        printf("\nSocket 2 Connected!\n");
+        printf("\nTCP Socket 2 Connected!\n");
+
+        /*---------------------------------
+           JOIN & PUBLISH
+        ----------------------------------*/
+        struct ServantData rcv_data;
+
+        // GET OBJ FROM CLIENT 2
+        recv(new_socket2 , &rcv_data, sizeof(rcv_data), 0);
+        rcv_data.GUID = reg.size+1;
+
+        // JOIN
+        reg.servants[reg.size] = rcv_data;
+
+        // PUBLISH
+        publish(reg.size);
+
+        reg.size++;
+
+        // SEND BACK GUID TO CLIENT 2
+        int m = send(new_socket2, &rcv_data, sizeof(rcv_data), 0);
     }
 
     /*----------------------------------
      Join (Register Clients)
     -----------------------------------*/
-    join();
+    //join();
 
     /*----------------------------------
      Publish 
     -----------------------------------*/
-    publish();
+    //publish();
 
     /*-----------------------------------
      Change socket to non-blocking
@@ -261,7 +304,7 @@ void* tcp_thread(void* arg){
     fcntl(server_fd, F_SETFL, O_NONBLOCK);
 
     for(;;){
-        printf("\nTCP Thread\n");
+        printf("\ntcp .\n");
         // okay i registered the clients, waiting for a message from clients
         int valread = recv( new_socket , buffer, BUF_SIZE, 0);
         int valread2 = recv( new_socket2 , buffer, BUF_SIZE, 0);
@@ -269,6 +312,7 @@ void* tcp_thread(void* arg){
         // send(new_socket , msg , strlen(msg) , 0);
         // send(new_socket2 , msg , strlen(msg) , 0);
         // memset(msg, 0, MSG_LEN);
+        //printf("\nTCP BUFFER\n");
         printf("%s", buffer);                         //display message
         bzero(buffer, sizeof(buffer));                //flush buffer
         sleep(3);                                     //introduce delay or else loops too fast (?)                                  
