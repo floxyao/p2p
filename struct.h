@@ -11,6 +11,6 @@ struct ServantData{
     uint32_t GUID;
     //int last_update;
     //const char *my_file[50];
-    const char my_file[50];
+    char my_file[50];
 };
 //#pragma pack(0)
