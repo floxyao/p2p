@@ -80,7 +80,7 @@ void* tcp_thread(void* arg){
     int n = send(sock, &my_data, sizeof(my_data), 0);
     bzero(buffer, sizeof(buffer)); // flush
 
-    printf("Client 1 WAITING:\n");
+    //printf("Client 1 WAITING:\n");
     recv(sock, &my_data, sizeof(my_data), 0);
     printf("Client 1 received: %d\n", my_data.GUID);
 
@@ -110,16 +110,25 @@ void* tcp_thread(void* arg){
     return NULL; //silence
 }
 
+//==========================================================================
+// Send/Receive Socket
+// Sends and receives messages to client. 
+// *note sleep() is used because without it, the loop appears to be too fast
+// and messages aren't being sent correctly
+//==========================================================================
 void* udp_thread(void* arg){  
-	char*  message = "                    Hello from Client 1"; 
+	char* message = "Hello from Client 1"; 
 
 	/*-------------------------------
      Creating UDP socket 
     --------------------------------*/
 	if ((udp_sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) { 
-		printf("                    UDP socket 1 failed"); 
+		printf("UDP socket failed"); 
 		exit(0); 
 	} 
+    else{
+        printf("\nClient 1 UDP socket connected\n"); 
+    }
 
 	memset(&serv_addr, 0, sizeof(serv_addr)); 
 
@@ -133,19 +142,29 @@ void* udp_thread(void* arg){
 	/*-------------------------------
      Send message back to UDP server
     --------------------------------*/
-	sendto(udp_sock, (const char*)message, strlen(message), 
-		0, (const struct sockaddr*)&serv_addr, 
-		sizeof(serv_addr)); 
+	// sendto(udp_sock, (const char*)message, strlen(message), 
+	// 	0, (const struct sockaddr*)&serv_addr, 
+	// 	sizeof(serv_addr)); 
+	// printf("1 Message sent.\n");
 
     /*-------------------------------
      Wait for message from UDP server
     --------------------------------*/
-    n = recvfrom(sock, (char *)buffer, BUF_SIZE,  
-                MSG_WAITALL, (struct sockaddr *) &serv_addr, 
-                &len); 
-    buffer[n] = '\0'; 
-    printf("                    Got message from UDP Server!\n"); 
-    printf("                    Server: %s\n", buffer); 
+	// printf("Waiting for my message\n"); 
+    // n = recvfrom(sock, (char *)buffer, MAXLINE,  
+    //             MSG_WAITALL, (struct sockaddr *) &servaddr, 
+    //             &len); 
+    // buffer[n] = '\0'; 
+    // printf("Got message from UDP Server!\n"); 
+    // printf("Server: %s\n", buffer); 
+    for(;;){
+        sendto(udp_sock, (const char*)message, strlen(message), 
+            0, (const struct sockaddr*)&serv_addr, 
+            sizeof(serv_addr)); 
+        printf("1 Message sent.\n");
+        sleep(3);
+    }
+
 	close(udp_sock); 
 }
 
