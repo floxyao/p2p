@@ -16,6 +16,7 @@
 #include "struct.h"
 #define SENDER_NAME "server: "
 #define PORT 8080
+#define UDP_PORT 8081
 #define NUM_THREADS 2
 #define MSG_LEN 100
 #define BUF_SIZE 1024
@@ -117,7 +118,7 @@ void publish(){
 // Send "Datagrams" over network to notify client is still connected
 //================================================================================
 void* udp_thread(void* arg){
-    char *hello = "                    Hello from server"; 
+    char *hello = "                    HELLO FROM SERVER"; 
 
     /*-----------------------------------------------------
      Creating UDP socket 
@@ -137,7 +138,7 @@ void* udp_thread(void* arg){
     ------------------------------------------------------*/
     server_address.sin_family    = AF_INET; // IPv4 
     server_address.sin_addr.s_addr = INADDR_ANY; 
-    server_address.sin_port = htons(PORT); 
+    server_address.sin_port = htons(UDP_PORT); 
 
     /*-----------------------------------------------------
       UDP Bind
@@ -150,26 +151,33 @@ void* udp_thread(void* arg){
         printf("                    UDP Socket Connected!\n"); 
     }
       
-    /*-----------------------------------------------------
-     Wait for message from UDP client
-    ------------------------------------------------------*/
-    printf("                    Waiting for message from UDP...\n"); 
-    n = recvfrom(udp_fd, (char *)buffer, BUF_SIZE, MSG_WAITALL, (struct sockaddr *) &client_address, &len); 
-    buffer[n] = '\0'; 
-    printf("                    Got message from UDP Client!\n");
-    printf("                    Client: %s\n", buffer); 
+    while(1){
+        printf("\n                  UDP Thread\n");
 
-    /*-----------------------------------------------------
-     Send message back to UDP client
-    ------------------------------------------------------*/
-    sendto(udp_fd, (const char *)hello, strlen(hello), 0, (const struct sockaddr *) &client_address, len); 
-    printf("                    Hello message sent.\n");  
+        /*-----------------------------------------------------
+        Send message to UDP client
+        ------------------------------------------------------*/
+        sendto(udp_fd, (const char *)hello, strlen(hello), 0, (const struct sockaddr *) &client_address, len); 
+        printf("                    Hello message sent.\n");
+
+        /*-----------------------------------------------------
+        Wait for message from UDP client
+        ------------------------------------------------------*/
+        printf("                    Waiting for message from UDP...\n"); 
+        n = recvfrom(udp_fd, (char *)buffer, BUF_SIZE, MSG_WAITALL, (struct sockaddr *) &client_address, &len); 
+        buffer[n] = '\0'; 
+        printf("                    Got message from UDP Client!\n");
+        printf("                    Client: %s\n", buffer); 
+        sleep(5);
+    
+    }
+      
       
 
-    for(;;){
-        sleep(3);
-        printf("\n                    UDP Thread!\n");
-    }
+    // for(;;){
+    //     sleep(3);
+    //     printf("\n                    UDP Thread!\n");
+    // }
     close(udp_fd); 
     pthread_exit(NULL);
 }

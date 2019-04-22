@@ -13,9 +13,11 @@
 #include "struct.h"
 #include <fcntl.h>
 #include <pthread.h>
+#include <errno.h>
 #define SENDER_NAME "client 2: "
 #define IP_ADDR "127.0.0.1"
 #define PORT 8080
+#define UDP_PORT 8081
 #define NUM_THREADS 3
 #define MSG_LEN 100
 #define BUF_SIZE 1024
@@ -81,25 +83,29 @@ void* tcp_thread(void* arg){
 
     //struct ServantData rcv_data;
 
-    printf("Client 2 WAITING:\n");
-    recv(sock2, &my_data, sizeof(my_data), 0);
-    printf("Client 2 received: %d\n", my_data.GUID);
+    while(1){
+        printf("\nClient 2  TCP WAITING:\n");
+        sleep(25);
+    }
+    // recv(sock2, &my_data, sizeof(my_data), 0);
+    // printf("Client 2 received: %d\n", my_data.GUID);
 
     /*-----------------------------------
      Change socket to non-blocking
         needs to happen after registration
     -----------------------------------*/
-    fcntl(sock2, F_SETFL, O_NONBLOCK);
+    // fcntl(sock2, F_SETFL, O_NONBLOCK);
 
-    for(;;){
-        //int valread = recv( sock , buffer, BUF_SIZE, 0);
-        //printf("Client 2 sending loop\n");
-        send(sock2 , msg , strlen(msg) , 0);
-        memset(msg, 0, MSG_LEN);                      //clear message
-        printf("%s",buffer);                          //display message
-        bzero(buffer, sizeof(buffer));                //flush buffer
-        sleep(1);                                     //introduce delay or else loops too fast (?) 
-    }
+    // for(;;){
+    //     //int valread = recv( sock , buffer, BUF_SIZE, 0);
+    //     //printf("Client 2 sending loop\n");
+    //     send(sock2 , msg , strlen(msg) , 0);
+    //     memset(msg, 0, MSG_LEN);                      //clear message
+    //     printf("%s",buffer);                          //display message
+    //     bzero(buffer, sizeof(buffer));                //flush buffer
+    //     sleep(1);                                     //introduce delay or else loops too fast (?) 
+    // }
+
     //-------------SEARCH--------------------
     // have a switch statement here
     // select search, then send it over
@@ -111,7 +117,7 @@ void* tcp_thread(void* arg){
 }
 
 void* udp_thread(void* arg){  
-	char*  message = "                    Hello from Client 2"; 
+	char*  message = " HELLO from CLIENT 2"; 
 
 	/*-------------------------------
      Creating UDP socket 
@@ -127,26 +133,34 @@ void* udp_thread(void* arg){
      Fill server information
     --------------------------------*/
 	serv_addr.sin_family = AF_INET; 
-	serv_addr.sin_port = htons(PORT); 
-	serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1"); 
+	serv_addr.sin_port = htons(UDP_PORT); 
+	serv_addr.sin_addr.s_addr = INADDR_ANY; 
 
 	/*-------------------------------
      Send message back to UDP server
     --------------------------------*/
-	sendto(udp_sock, (const char*)message, strlen(message), 
-		0, (const struct sockaddr*)&serv_addr, 
-		sizeof(serv_addr)); 
+    while(1){
+        printf("\nUDP SOCKET\n");
+        sendto(udp_sock, (const char*)message, strlen(message), 0, (const struct sockaddr*)&serv_addr, sizeof(serv_addr));
+        printf("\nMessage sent!\n"); 
+        /*-------------------------------
+        Wait for message from UDP server
+        --------------------------------*/
+        printf("\nright before n\n");
+        n = recvfrom(udp_sock, (char *)buffer, BUF_SIZE, MSG_WAITALL, (struct sockaddr *) &serv_addr, &len);
+        printf("\nright after n\n");
+        if( n < 0){
+            printf("recv error%d\n",errno);
+        }
+        buffer[n] = '\0'; 
+        printf("                    Got message from UDP Server!\n"); 
+        printf("                    Server: %s\n", buffer); 
+	   
 
-    /*-------------------------------
-     Wait for message from UDP server
-    --------------------------------*/
-    n = recvfrom(sock2, (char *)buffer, BUF_SIZE,  
-                MSG_WAITALL, (struct sockaddr *) &serv_addr, 
-                &len); 
-    buffer[n] = '\0'; 
-    printf("                    Got message from UDP Server!\n"); 
-    printf("                    Server: %s\n", buffer); 
-	close(udp_sock); 
+        sleep(5);
+    }
+	
+     close(udp_sock); 
 }
 
 //==========================================================================
