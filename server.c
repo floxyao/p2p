@@ -72,53 +72,6 @@ void publish(int client_no){
 }
 
 //================================================================================
-// Function: join
-// Purpose: Registers the clients that join the network
-//================================================================================
-void join(){
-    // create object to accept data from clients
-    struct ServantData rcv_data;
-
-    /*------------------------------
-     * Client 1
-     *-----------------------------*/
-    // get object from client 1
-    recv(new_socket , &rcv_data, sizeof(rcv_data), 0);
-    rcv_data.GUID = reg.size+1;
-    reg.servants[reg.size] = rcv_data;
-    publish(reg.size);
-    
-    reg.size++;
-
-    // generate GUID (just size for now)
-    //rcv_data.GUID = reg.size;
-    //reg.servants[0] = rcv_data;
-
-    // send back GUID to client 1
-    int n = send(new_socket, &rcv_data, sizeof(rcv_data), 0);
-
-
-    /*------------------------------
-     * Client 2
-     *-----------------------------*/
-    // get object from client 2
-    recv(new_socket2 , &rcv_data, sizeof(rcv_data), 0);
-    rcv_data.GUID = reg.size+1;
-    reg.servants[reg.size] = rcv_data;
-    publish(reg.size);
-
-    reg.size++;
-
-    // generate GUID
-    //reg.servants[1] = rcv_data;
-
-    // send back GUID to client 2
-    int m = send(new_socket2, &rcv_data, sizeof(rcv_data), 0);
-
-    printf("\nServants Registered!\n");
-}
-
-//================================================================================
 // Function: udp_thread
 // Handles UDP connection/communication with UDP client
 // Send "Datagrams" over network to notify client is still connected
@@ -158,20 +111,17 @@ void* udp_thread(void* arg){
         perror("                    bind failed"); 
         exit(EXIT_FAILURE); 
     }
-    
+
     /*-----------------------------------------------------
      Wait for message from UDP client
     ------------------------------------------------------*/
     for(;;){
-        //printf("                    Waiting for message from UDP...\n"); 
         n = recvfrom(udp_fd, (char *)buffer, BUF_SIZE, MSG_WAITALL, (struct sockaddr *) &client_address, &len); 
         buffer[n] = '\0'; 
-        //printf("                    Got message from UDP Client!\n");
         printf("                    UDP Client: %s\n", buffer); 
 
         bzero(buffer, sizeof(buffer));
         sleep(3);
-        //printf("\n                    udp .\n");
     }
     close(udp_fd); 
     pthread_exit(NULL);
@@ -239,11 +189,12 @@ void* tcp_thread(void* arg){
         // GET OBJ. FROM CLIENT 1 
         recv(new_socket , &rcv_data, sizeof(rcv_data), 0);
         rcv_data.GUID = reg.size+1;
+
+        // JOIN
         reg.servants[reg.size] = rcv_data;
 
-        // reg.size = how many clients we have in the registry
-        // i'm using reg.size as each client's GUID since it's unique
-        publish(reg.size);
+        // PUBLISH
+        publish(reg.size); // reg.size (size of registry) used for unique GUID
         
         reg.size++;
 
