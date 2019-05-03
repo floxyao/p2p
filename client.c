@@ -12,43 +12,23 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <pthread.h>
-#include "struct.h"
+#include <arpa/inet.h>
+#include "helper.h"
+
 #define SENDER_NAME "client 1: "
 #define IP_ADDR "127.0.0.1"
-#define PORT 8080 
+#define PORT 8080
 #define NUM_THREADS 3
-#define MSG_LEN 100
-#define BUF_SIZE 1024
 
-
-
-//==========================================================================
-// SOCKET STUFF
-//==========================================================================
 int       sock, udp_sock, len, n;
-struct    sockaddr_in client_addr, serv_addr;     
+struct    sockaddr_in client_addr, serv_addr; 
+struct    ServantData my_data;    
 socklen_t CLADDR_LEN = sizeof(client_addr);
 int       inet_pton(); //get rid of warning
 char      msg[MSG_LEN];
 char      buffer[BUF_SIZE] = {0};
+char      guid[10];
 
-//==========================================================================
-// Concatenation of two strings
-//==========================================================================
-void concat(char* p, char *q){
-   int c, d;
-   c = 0;
-   while (p[c] != '\0') {
-      c++;      
-   }
-   d = 0;
-   while (q[d] != '\0') {
-      p[c] = q[d];
-      d++;
-      c++;    
-   }
-   p[c] = '\0';
-}
 
 //==========================================================================
 // User Input Thread
@@ -73,15 +53,11 @@ void* input_thread(void* arg){
 //==========================================================================
 void* tcp_thread(void* arg){
 
-    // create object to send data to server
-    struct ServantData my_data = {.GUID = 0, .my_file = "cat.txt"};
-
-    // send object
     int n = send(sock, &my_data, sizeof(my_data), 0);
-    bzero(buffer, sizeof(buffer)); // flush
+    bzero(buffer, sizeof(buffer));
 
-    //printf("Client 1 WAITING:\n");
     recv(sock, &my_data, sizeof(my_data), 0);
+
     printf("Client 1 received: %d\n", my_data.GUID);
 
     /*-----------------------------------
@@ -100,11 +76,6 @@ void* tcp_thread(void* arg){
         sleep(1);                                     //introduce delay or else loops too fast (?) 
     }
 
-    //-------------SEARCH--------------------
-    // have a switch statement here
-    // select search, then send it over
-    // using send(sock , msg , strlen(msg) , 0);
-
     close(sock); 
     pthread_exit(NULL);
     return NULL; //silence
@@ -117,8 +88,6 @@ void* tcp_thread(void* arg){
 // and messages aren't being sent correctly
 //==========================================================================
 void* udp_thread(void* arg){  
-	char* message = "Hello from Client 1"; 
-
 	/*-------------------------------
      Creating UDP socket 
     --------------------------------*/
@@ -137,34 +106,29 @@ void* udp_thread(void* arg){
     --------------------------------*/
 	serv_addr.sin_family = AF_INET; 
 	serv_addr.sin_port = htons(PORT); 
-	serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1"); 
+	serv_addr.sin_addr.s_addr = inet_addr(IP_ADDR); 
 
 	/*-------------------------------
-     Send message back to UDP server
+     Send message to UDP server
     --------------------------------*/
-	// sendto(udp_sock, (const char*)message, strlen(message), 
-	// 	0, (const struct sockaddr*)&serv_addr, 
-	// 	sizeof(serv_addr)); 
-	// printf("1 Message sent.\n");
-
-    /*-------------------------------
-     Wait for message from UDP server
-    --------------------------------*/
-	// printf("Waiting for my message\n"); 
-    // n = recvfrom(sock, (char *)buffer, MAXLINE,  
-    //             MSG_WAITALL, (struct sockaddr *) &servaddr, 
-    //             &len); 
-    // buffer[n] = '\0'; 
-    // printf("Got message from UDP Server!\n"); 
-    // printf("Server: %s\n", buffer); 
     for(;;){
-        sendto(udp_sock, (const char*)message, strlen(message), 
+        // after connecting to UDP, flag every 60 seconds
+
+
+        sleep(5);
+
+        sprintf(guid, "%d", my_data.GUID); 
+
+
+        // send time 
+        sendto(udp_sock, (const char*)guid, strlen(guid), 
             0, (const struct sockaddr*)&serv_addr, 
             sizeof(serv_addr)); 
-        printf("1 Message sent.\n");
-        sleep(3);
-    }
 
+        printf("1 Message sent.\n");
+
+        //memset(message, 0, sizeof(message));
+    }
 	close(udp_sock); 
 }
 
@@ -176,6 +140,24 @@ void* udp_thread(void* arg){
 //==========================================================================
 int main(int argc, char const *argv[]) 
 {
+    // const char *temp = argv[1];
+    // my_data.my_files[0] = malloc(sizeof(temp) + 1);
+    
+    int i = 1; // start at index 1
+
+    if(argv[1] != NULL){
+        strcpy(my_data.my_file, argv[1]);
+    }
+    else{
+        printf("\ninsert file name\n");
+        exit(0);
+    }
+    //strcpy(my_data.my_file, argv[1]);
+    // do{
+    //     strcpy(my_data.my_file, argv[i]);
+    //     i++;
+    // }while(argv[i] != NULL){
+    
     /*---------------------------------
      Creating socket file descriptor
     ----------------------------------*/
