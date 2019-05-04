@@ -18,12 +18,11 @@
 #define SENDER_NAME "server: "
 #define PORT 8080
 #define NUM_THREADS 2
-#define MSG_LEN 100
-#define BUF_SIZE 1024
+
 
 int       server_fd, udp_fd, new_socket, new_socket2;
 struct    sockaddr_in server_address, client_address;
-struct ServantData rcv_data;
+struct    ServantData rcv_data;
 int       addrlen = sizeof(server_address);
 char      msg[MSG_LEN];
 char      buffer[BUF_SIZE] = {0};
@@ -107,7 +106,7 @@ void* tcp_thread(void* arg){
     }
 
     /*------------------------------------------------------------------------------
-     Accept client 1 connection
+     Accept client 2 connection
     -------------------------------------------------------------------------------*/
     if ((new_socket2 = accept(server_fd, (struct sockaddr *)&server_address, 
 					(socklen_t*)&addrlen)) < 0)
