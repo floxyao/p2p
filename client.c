@@ -114,14 +114,14 @@ void* udp_thread(void* arg){
     for(;;){
         // after connecting to UDP, flag every 60 seconds
 
-
-        sleep(5);
-
-        sprintf(guid, "%d", my_data.GUID); 
+        sleep(30);
 
 
-        // send time 
-        sendto(udp_sock, (const char*)guid, strlen(guid), 
+        
+        sprintf(guid, "%d", my_data.GUID); // convert (int)guid to (char)guid
+
+
+        sendto(udp_sock, (const char*)guid, strlen(guid),  //
             0, (const struct sockaddr*)&serv_addr, 
             sizeof(serv_addr)); 
 
@@ -142,8 +142,6 @@ int main(int argc, char const *argv[])
 {
     // const char *temp = argv[1];
     // my_data.my_files[0] = malloc(sizeof(temp) + 1);
-    
-    int i = 1; // start at index 1
 
     if(argv[1] != NULL){
         strcpy(my_data.my_file, argv[1]);
