@@ -5,6 +5,7 @@
 //Date:     4-10-19
 //Info: 
 //===============================================================================================
+#define NUM_CLIENTS 2
 
 struct ServantData{
     uint32_t GUID;
@@ -17,15 +18,8 @@ struct ServantData{
     uint32_t alive;
 };
 
-struct ServantData{
-    uint32_t GUID;
-    uint32_t alive;
-    char* my_files[10];
-    struct tm *time;
-};
-
 struct Registry{
-    struct ServantData servants[2];
+    struct ServantData servants[NUM_CLIENTS];
     int size;
 };
 
