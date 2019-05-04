@@ -97,43 +97,15 @@ int alive(int GUID){
 }
 
 //================================================================================
-// function: check_clients_if_alive_or_dead
-//    1. Gets the udp message from each client
-//    2. Check which client it came from
-//    3. If client is alive then see when the last ping was
-//    4. If it was less than X time then update time stamp
-//    5. Else remove from registry and mark dead
+// function: client_is_registered
+// returns 1 if client is registered
+// returns 2 if client is not registered
 //================================================================================
-// void check_clients_if_alive_or_dead(int GUID, int pingtime){
-    
-//     for(int client_no=0; i<NUM_CLIENTS; client_no++){
-//         if(reg.servants[i].GUID == GUID){
-//             printf(" last updated ");
-//             show_time(client_no);
-
-//             // get current time and last updated time 
-
-//             //int pingtime  = SECONDS * gmtime(&t)->tm_min + gmtime(&t)->tm_sec;
-//             int timestamp = SECONDS * reg.servants[i].time->tm_min + reg.servants[i].time->tm_sec;
-
-//             // this block checks the client is dead or alive
-//             // convert to seconds for easy check
-//             if((abs(timestamp - pingtime) < END_TIME)){
-
-//                 update_time(client_no);
-
-//                 printf(" updated to ");
-//                 show_time(client_no);
-//                 // make unavailable from registry
-//             }
-//             else{
-//                 reg.servants[client_no] = (struct ServantData){ .GUID = 0, 
-//                                                                 .my_file = "", 
-//                                                                 .time = NULL,
-//                                                                 .alive = FALSE };
-
-//                 printf("\nremoving from registry\n");
-//             }
-//         }
-//     }
-// }
+int client_is_registered(int GUID){
+    for(int i=0; i<NUM_CLIENTS; i++){
+        if(reg.servants[i].GUID == GUID){
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
