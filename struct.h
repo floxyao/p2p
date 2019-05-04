@@ -12,9 +12,16 @@ struct ServantData{
     //const char *my_file[50];
     char my_file[50];
 
-    char* my_files[10];
+    //char* my_files[10];
     struct tm *time;
     uint32_t alive;
+};
+
+struct ServantData{
+    uint32_t GUID;
+    uint32_t alive;
+    char* my_files[10];
+    struct tm *time;
 };
 
 struct Registry{
