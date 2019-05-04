@@ -118,12 +118,11 @@ void* udp_thread(void* arg){
         // after connecting to UDP, flag every 60 seconds
 
         
-        sleep(8);
+        sleep(30);
 
 
-        sprintf(guid, "%d", my_data.GUID); 
+        sprintf(guid, "%d", my_data.GUID); // convert int to char
 
-        //printf("\nlabel: %s\n", my_guid);
 
         sendto(udp_sock, (const char*)guid, strlen(guid), 
             0, (const struct sockaddr*)&serv_addr, 
@@ -142,7 +141,6 @@ void* udp_thread(void* arg){
 //==========================================================================
 int main(int argc, char const *argv[]) 
 {
-    int i = 1; // start at index 1
 
     if(argv[1] != NULL){
         strcpy(my_data.my_file, argv[1]);
