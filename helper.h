@@ -39,8 +39,7 @@ void concat(char* p, char *q){
 
 //================================================================================
 // function: update_time
-// 
-//
+// update timestamp of client
 //================================================================================
 void update_time(int client_no){
     time_t t = time(NULL);
@@ -51,8 +50,7 @@ void update_time(int client_no){
 
 //================================================================================
 // function: show_time
-// 
-//
+// print timestamp of client
 //================================================================================
 void show_time(int client_no){
     time_t t = time(NULL);
@@ -71,12 +69,8 @@ void show_time(int client_no){
 void print(int GUID){
     printf("\n====================================\n");
 
-    if(GUID < 0){
-        printf("Invalid GUID");
-        exit(0);
-    }
-
     if(reg.servants[GUID].alive == TRUE){
+
         printf("Client %d GUID: %d", 
                 GUID+1, reg.servants[GUID].GUID); // client_no is passed in as size of array 
                                                     // size of array was 0 when first called, so +1 
@@ -93,14 +87,13 @@ void print(int GUID){
                         reg.servants[GUID].time->tm_min,
                         reg.servants[GUID].time->tm_sec);
     }
-    
     printf("\n====================================\n");
 }
 
 //================================================================================
 // function: alive
-// 
-//
+// returns 1 if client is alive
+// returns 2 if client is dead
 //================================================================================
 int alive(int client_no){
     return reg.servants[client_no].alive;
@@ -115,66 +108,35 @@ int alive(int client_no){
 //    5. Else remove from registry and mark dead
 //================================================================================
 void check_clients_if_alive_or_dead(int client_no){
-    if(client_no == 1 && alive(client_no-1) == TRUE){       // -1 to match array index
-        printf("\n\n\nclient 1 is alive");
-        time_t t = time(NULL);
 
-        // get current time and last updated time 
+    for(int i=0; i<NUM_CLIENTS; i++){
+        if(reg.servants[i].GUID == client_no){
+            time_t t = time(NULL);
 
-        int pingtime  = SECONDS * gmtime(&t)->tm_min + gmtime(&t)->tm_sec;
-        int timestamp = SECONDS * reg.servants[0].time->tm_min + reg.servants[0].time->tm_sec;
+            // get current time and last updated time 
 
+            int pingtime  = SECONDS * gmtime(&t)->tm_min + gmtime(&t)->tm_sec;
+            int timestamp = SECONDS * reg.servants[i].time->tm_min + reg.servants[i].time->tm_sec;
 
-        // this block checks the client is dead or alive
-        // convert to seconds for easy time stamp check
-        if((abs(timestamp - pingtime) >= END_TIME)){
+            // this block checks the client is dead or alive
+            // convert to seconds for easy check
+            if((abs(timestamp - pingtime) < END_TIME)){
 
-            // make unavailable from registry
-            reg.servants[client_no-1] = (struct ServantData){
-                                           .GUID = 0, 
-                                           .my_file = "", 
-                                           .time = NULL,
-                                           .alive = FALSE};
+                printf("\n\n---------------------");
+                update_time(client_no-1);
+                show_time(client_no-1);
+                printf("---------------------\n\n");
+                // make unavailable from registry
+            }
+            else{
+                reg.servants[client_no-1] = (struct ServantData){
+                                            .GUID = 0, 
+                                            .my_file = "", 
+                                            .time = NULL,
+                                            .alive = FALSE};
 
-            printf("removing from registry");
-        }
-        else{
-            printf("\n---------------------");
-            update_time(client_no-1);
-            show_time(client_no-1);
-            printf("---------------------\n");
-        }
-    }
-
-    else if
-        (client_no == 2 && alive(client_no-1) == TRUE){
-        
-        printf("\n\n\nclient 2 is alive");
-        time_t t = time(NULL);
-        
-        // get current time and last updated time
-        // convert to seconds for easy time stamp check
-        int pingtime  = SECONDS * gmtime(&t)->tm_min + gmtime(&t)->tm_sec;
-        int timestamp = SECONDS * reg.servants[1].time->tm_min + reg.servants[1].time->tm_sec;
-        
-
-        // this block checks the client is dead or alive
-
-        if((abs(timestamp - pingtime) >= END_TIME)){
-            // make unavailable from registry
-            reg.servants[client_no-1] = (struct ServantData){
-                                           .GUID = 0, 
-                                           .my_file = "", 
-                                           .time = NULL,
-                                           .alive = FALSE};
-
-            printf("removing from registry"); 
-        }
-        else{
-            printf("\n*********************");
-            update_time(client_no-1);
-            show_time(client_no-1);
-            printf("*********************\n");
+                printf("removing from registry");
+            }
         }
     }
 }
