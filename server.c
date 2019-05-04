@@ -182,11 +182,6 @@ void* udp_thread(void* arg){
     memset(&server_address, 0, sizeof(server_address)); 
     memset(&client_address, 0, sizeof(client_address)); 
     
-    // struct timeval read_timeout;
-    // read_timeout.tv_sec = 0;
-    // read_timeout.tv_usec = 10;
-    // setsockopt(udp_fd, SOL_SOCKET, SO_RCVTIMEO, &read_timeout, sizeof read_timeout);
-    
     /*-----------------------------------------------------
      Fill server information
     ------------------------------------------------------*/
