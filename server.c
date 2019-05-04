@@ -181,7 +181,12 @@ void* udp_thread(void* arg){
 
     memset(&server_address, 0, sizeof(server_address)); 
     memset(&client_address, 0, sizeof(client_address)); 
-      
+    
+    // struct timeval read_timeout;
+    // read_timeout.tv_sec = 0;
+    // read_timeout.tv_usec = 10;
+    // setsockopt(udp_fd, SOL_SOCKET, SO_RCVTIMEO, &read_timeout, sizeof read_timeout);
+    
     /*-----------------------------------------------------
      Fill server information
     ------------------------------------------------------*/
@@ -204,11 +209,11 @@ void* udp_thread(void* arg){
     for(;;){
         n = recvfrom(udp_fd, (char *)buffer, BUF_SIZE, MSG_WAITALL, (struct sockaddr *) &client_address, &len); 
         buffer[n] = '\0'; 
-        printf("Ping from Client %s @ ", buffer); 
+        
+        printf("\n\nPing from Client %s", buffer); 
     
         // check who sent the UDP message
         int CLIENT_NO = buffer[0] - '0';                        // convert ASCII to int  
-        printf("client id = %d", CLIENT_NO);
 
         check_clients_if_alive_or_dead(CLIENT_NO);
 
