@@ -207,15 +207,57 @@ void* udp_thread(void* arg){
       Wait for ping from UDP client
     ------------------------------------------------------*/
     for(;;){
+        time_t t = time(NULL);
+
         n = recvfrom(udp_fd, (char *)buffer, BUF_SIZE, MSG_WAITALL, (struct sockaddr *) &client_address, &len); 
         buffer[n] = '\0'; 
         
         printf("\n\nPing from Client %s", buffer); 
-    
-        // check who sent the UDP message
-        int CLIENT_NO = buffer[0] - '0';                        // convert ASCII to int  
+        int ping_hr = gmtime(&t)->tm_hour;
+        int ping_min = gmtime(&t)->tm_min;
+        int ping_sec = gmtime(&t)->tm_sec;
 
-        check_clients_if_alive_or_dead(CLIENT_NO);
+        // check who sent the UDP message
+        int GUID = buffer[0] - '0';                        // convert ASCII to int  
+
+        //    1. Gets the udp message from each client
+        //    2. Check which client it came from
+        //    3. If client is alive then see when the last ping was
+        //    4. If it was less than X time then update time stamp
+        //    5. Else remove from registry and mark dead
+        for(int client_no=0; client_no<NUM_CLIENTS; client_no++){
+            if(reg.servants[client_no].GUID == GUID){
+                printf(" last updated ");
+                show_time(client_no);
+
+                // get current time and last updated time 
+
+                int pingtime  = SECONDS * ping_min + ping_sec;
+                int timestamp = SECONDS * reg.servants[client_no].time->tm_min + reg.servants[client_no].time->tm_sec;
+
+                // this block checks the client is dead or alive
+                // convert to seconds for easy check
+                if((abs(timestamp - pingtime) < END_TIME)){
+
+                    update_time(client_no);
+
+                    printf(" updated to ");
+                    show_time(client_no);
+                    // make unavailable from registry
+                }
+                else{
+                    reg.servants[client_no] = (struct ServantData){ .GUID = 0, 
+                                                                    .my_file = "", 
+                                                                    .time = NULL,
+                                                                    .alive = FALSE };
+
+                    printf("\nremoving from registry\n");
+            
+                }
+            }
+        }
+
+
 
         bzero(buffer, sizeof(buffer));
         sleep(1);
