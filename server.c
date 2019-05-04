@@ -212,10 +212,7 @@ void* udp_thread(void* arg){
         n = recvfrom(udp_fd, (char *)buffer, BUF_SIZE, MSG_WAITALL, (struct sockaddr *) &client_address, &len); 
         buffer[n] = '\0'; 
         
-        printf("\n\n*ping* client%s", buffer); 
-        int ping_hr = gmtime(&t)->tm_hour;
-        int ping_min = gmtime(&t)->tm_min;
-        int ping_sec = gmtime(&t)->tm_sec;
+        printf("\n\n*ping* client[%s]", buffer); 
 
         int GUID = buffer[0] - '0';                        // check who sent UDP message
 
@@ -226,7 +223,7 @@ void* udp_thread(void* arg){
             4. Else remove from registry and mark dead
         */
         if(client_is_registered(GUID) == TRUE){
-            int pingtime  = SECONDS * ping_min + ping_sec; // converted to seconds for easy check
+            int pingtime  = SECONDS * gmtime(&t)->tm_min + gmtime(&t)->tm_sec; // converted to seconds for easy check
             int timestamp = SECONDS * reg.servants[GUID-1].time->tm_min + reg.servants[GUID-1].time->tm_sec;
 
             if((abs(timestamp - pingtime) < END_TIME)){ 
