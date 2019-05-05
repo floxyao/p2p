@@ -212,7 +212,7 @@ int menu(){
 //================================================================================
 
 int search_registry(char fileName[BUF_SIZE]){
-    int GUID; //guid of client with file
+    int GUID = 0; //guid of client with file
 
     printf("Got into search registry\n");
     // printf("fileName: %s\n", fileName);

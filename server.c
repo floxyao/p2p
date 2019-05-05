@@ -23,7 +23,7 @@
 
 int       server_fd, udp_fd, new_socket, new_socket2;
 struct    sockaddr_in server_address, client_address;
-struct ServantData rcv_data;
+struct    ServantData rcv_data;
 int       addrlen = sizeof(server_address);
 char      msg[MSG_LEN];
 char      udp_buffer[BUF_SIZE] = {0};
@@ -148,7 +148,7 @@ void* tcp_thread(void* arg){
     for(;;){
         //printf("\ntcp .\n");
         
-        int valread = recv( new_socket , tcp_buffer, BUF_SIZE, 0);
+        int valread = recv( new_socket , tcp_buffer, BUF_SIZE, 0); //store requested file in tcp_buffer
         // int valread2 = recv( new_socket2 , tcp_buffer, BUF_SIZE, 0);
 
         printf("\nvalread: %d\n", valread);

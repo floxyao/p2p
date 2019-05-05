@@ -18,14 +18,16 @@
 
 #define SENDER_NAME "client 1: "
 #define IP_ADDR "127.0.0.1"
-#define PORT 8080
-#define NUM_THREADS 2
+#define IP_BROADCAST "255.255.255.255" 
+#define SERVER_PORT 8080
+#define BROADCAST_PORT 8081
+#define DOWNLOAD_PORT 8082
+#define NUM_THREADS 3
 
-//Function signatures
-int menu();
 
-int       sock, udp_sock, len, n;
-struct    sockaddr_in client_addr, serv_addr; 
+//global variables
+int       sock, udp_sock, broadcast_sock, broadcastPermission, brd_len, n;
+struct    sockaddr_in client_addr, serv_addr, broadcastAddr; 
 struct    ServantData my_data;    
 socklen_t CLADDR_LEN = sizeof(client_addr);
 int       inet_pton(); //get rid of warning
@@ -33,21 +35,85 @@ char      msg[MSG_LEN];
 char      buffer[BUF_SIZE] = {0};
 char      guid[10];
 char      fileName[MSG_LEN];
+char      *broadcastMessage;
+//thread data
+int rc; 
+pthread_t threads[NUM_THREADS];
 
 
 //==========================================================================
 // User Input Thread
 // Gets the message input from user.
 //==========================================================================
-void* input_thread(void* arg){
-    for(;;){
-        char label[] = SENDER_NAME;
-        fgets(msg, MSG_LEN, stdin);
-        concat(label, msg); //concat label to message to identify sender
-        strcpy(msg, label);
+// void* input_thread(void* arg){
+//     for(;;){
+//         char label[] = SENDER_NAME;
+//         fgets(msg, MSG_LEN, stdin);
+//         concat(label, msg); //concat label to message to identify sender
+//         strcpy(msg, label);
+//     }
+//     pthread_exit(NULL);
+//     return NULL;
+// }
+
+//==========================================================================
+// Function: download
+// downloads file from target client
+//==========================================================================
+void download(){
+
+}
+
+//==========================================================================
+// Function: broadcast
+// Broadcasts message to find desired client
+// input: target (target GUID)
+//==========================================================================
+void broadcast(char target[10]){
+    printf("got into broadcast\n");
+    broadcastMessage = target;
+    printf("broadcastMessage: %s\n", broadcastMessage);
+
+    /* Create socket for sending/receiving datagrams */
+    if ((broadcast_sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
+    //if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    {
+       printf("socket() failed");
     }
-    pthread_exit(NULL);
-    return NULL;
+        //DieWithError("socket() failed");
+
+    /* Set socket to allow broadcast */
+    broadcastPermission = 1;
+    if (setsockopt(broadcast_sock, SOL_SOCKET, SO_BROADCAST, (void *) &broadcastPermission, 
+    //if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (void *) &broadcastPermission, 
+          sizeof(broadcastPermission)) < 0)
+    {
+       printf("setsockeopt() failed");
+    }
+          //DieWithError("setsockopt() failed");
+
+    /* Construct local address structure */
+    memset(&broadcastAddr, 0, sizeof(broadcastAddr));   /* Zero out structure */
+    broadcastAddr.sin_family = AF_INET;                 /* Internet address family */
+    broadcastAddr.sin_addr.s_addr = inet_addr(IP_BROADCAST);/* Broadcast IP address */
+    broadcastAddr.sin_port = htons(BROADCAST_PORT);         /* Broadcast port */
+
+    brd_len = strlen(broadcastMessage);  /* Find length of sendString */
+   
+    for (int i = 0; i < 5; i++) /* Run forever */
+    {
+         /* Broadcast sendString in datagram to clients every 3 seconds*/
+         if (sendto(broadcast_sock, broadcastMessage, brd_len, 0, (struct sockaddr *) 
+               &broadcastAddr, sizeof(broadcastAddr)) != brd_len)
+         {
+             printf("sendto() sent a different number of bytes than expected");
+         }
+             //DieWithError("sendto() sent a different number of bytes than expected");
+
+        sleep(3);   /* Avoids flooding the network */
+    }
+    /* NOT REACHED */
+    close(broadcast_sock);
 }
 
 //==========================================================================
@@ -109,12 +175,15 @@ void* tcp_thread(void* arg){
                     if(valread > 0){
                         if( strcmp(buffer, "0") == 0 ){
                             printf("File not in registry\n");
-                            break;
+                            break; 
                         }
-                        else{
-                            printf("Target GUID: %s",buffer);    //display message
-                            bzero(buffer, sizeof(buffer));  
-
+                        else{ //start fetching process
+                            printf("Target GUID: %s\n",buffer);    //display message
+                            // bzero(buffer, sizeof(buffer));  
+                            char target[10];
+                            sscanf(buffer, "%s", target);
+                            // printf("target: %s\n", target);
+                            broadcast(target);
                             break;
                         }
                         
@@ -122,6 +191,7 @@ void* tcp_thread(void* arg){
                     sleep(1);
                 }
                 
+                bzero(buffer, sizeof(buffer));  
 
                 break;
             }
@@ -169,7 +239,7 @@ void* udp_thread(void* arg){
      Fill server information
     --------------------------------*/
 	serv_addr.sin_family = AF_INET; 
-	serv_addr.sin_port = htons(PORT); 
+	serv_addr.sin_port = htons(SERVER_PORT); 
 	serv_addr.sin_addr.s_addr = inet_addr(IP_ADDR); 
 
 	/*-------------------------------
@@ -237,11 +307,11 @@ int main(int argc, char const *argv[])
     /*---------------------------------------------------------------------
      Specify address for socket to connect to
      Specify family of address so it knows what type of address
-     Specify port; htons() converts the PORT to correct data format
-     so structure understands the port number and where we need connect to
+     Specify SERVER_PORT; htons() converts the SERVER_PORT to correct data format
+     so structure understands the SERVER_PORT number and where we need connect to
     ----------------------------------------------------------------------*/
 	serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(PORT);
+    serv_addr.sin_port = htons(SERVER_PORT);
     
     /*----------------------------------------------------------
 	 Convert IPv4 and IPv6 addresses from text to binary form
@@ -269,7 +339,7 @@ int main(int argc, char const *argv[])
     else{
         printf("\nClient 1 Connection Established");
         printf("\nIP: %s",IP_ADDR);
-        printf("\nPORT: %d\n\n",PORT);
+        printf("\nPORT: %d\n\n",SERVER_PORT);
     }
     
     /*-----------------------------------
@@ -278,10 +348,9 @@ int main(int argc, char const *argv[])
     //fcntl(sock, F_SETFL, O_NONBLOCK);
     
     /*---------------------
-     Create/Join threads
+    Create/Join threads
     ---------------------*/
-    int rc;
-    pthread_t threads[NUM_THREADS];
+
     //printf("main(): creating input thread \n");
     // rc = pthread_create(&threads[0], NULL, &input_thread, NULL);
     // if(rc){

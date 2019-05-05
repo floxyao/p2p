@@ -10,43 +10,112 @@
 #include <netinet/in.h> 
 #include <string.h>
 #include <unistd.h>
-#include "helper.h"
 #include <fcntl.h>
-#include <arpa/inet.h>
 #include <pthread.h>
+#include <arpa/inet.h>
+#include "helper.h"
+#include <stdbool.h>
 
 #define SENDER_NAME "client 2: "
 #define IP_ADDR "127.0.0.1"
-#define PORT 8080
+#define IP_BROADCAST "255.255.255.255" 
+#define SERVER_PORT 8080
+#define BROADCAST_PORT 8081
+#define DOWNLOAD_PORT 8082
 #define NUM_THREADS 3
+#define MAXRECVSTRING 255  /* Longest string to receive */
 
 //==========================================================================
 // SOCKET STUFF
 //==========================================================================
-int       sock2, udp_sock, len, n;
-struct    sockaddr_in client_addr2, serv_addr;   
+int       sock2, udp_sock,broadcast_sock, broadcastPermission, brd_len, n;
+struct    sockaddr_in client_addr2, serv_addr, broadcastAddr;   
 struct    ServantData my_data;
 socklen_t CLADDR_LEN = sizeof(client_addr2);
 int       inet_pton(); //get rid of warning
 char      msg[MSG_LEN];
 char      buffer[BUF_SIZE] = {0};
 char      guid[10];
-
+char      fileName[MSG_LEN];
+char      *broadcastMessage;
 
 //==========================================================================
 // User Input Thread
 // Gets the message input from user.
 //==========================================================================
-void* input_thread(void* arg){
-    for(;;){
-        char label[] = SENDER_NAME;
-        fgets(msg, MSG_LEN, stdin);
-        concat(label, msg); //concat label to message to identify sender
-        strcpy(msg, label);
-    }
-    pthread_exit(NULL);
-    return NULL;
+// void* input_thread(void* arg){
+//     for(;;){
+//         char label[] = SENDER_NAME;
+//         fgets(msg, MSG_LEN, stdin);
+//         concat(label, msg); //concat label to message to identify sender
+//         strcpy(msg, label);
+//     }
+//     pthread_exit(NULL);
+//     return NULL;
+// }
+
+//==========================================================================
+// Function: download
+// downloads file from target client
+//==========================================================================
+void download(){
+
 }
+
+//==========================================================================
+// Function: broadcast
+// Broadcasts message to find desired client
+// input: target (target GUID)
+//==========================================================================
+void* broadcastReceive(){
+    printf("Got into broadcast receive\n");
+    char recvString[MAXRECVSTRING+1]; /* Buffer for received string */
+    int recvStringLen;                /* Length of received string */
+
+    /* Construct bind structure */
+    memset(&broadcastAddr, 0, sizeof(broadcastAddr));   /* Zero out structure */
+    broadcastAddr.sin_family = AF_INET;                 /* Internet address family */
+    broadcastAddr.sin_addr.s_addr = htonl(INADDR_ANY);  /* Any incoming interface */
+
+    broadcastAddr.sin_port = htons(BROADCAST_PORT);      /* Broadcast port */
+
+   for(;;)
+    {
+   
+       if ((broadcast_sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
+       {
+           printf("Socket() failed\n");
+       }
+ 
+       /* Bind to the broadcast port */
+       if (bind(broadcast_sock, (struct sockaddr *) &broadcastAddr, sizeof(broadcastAddr)) < 0)
+       {
+           printf("bind() failed\n");
+           close(broadcast_sock);
+          continue;
+       }
+ 
+
+       /* Receive a single datagram from the server */
+       if ((recvStringLen = recvfrom(broadcast_sock, recvString, MAXRECVSTRING, 0, NULL, 0)) < 0)
+       {
+          printf("recvfrom() failed");
+       }
+       
+       recvString[recvStringLen] = '\0';
+       printf("Received: %s\n", recvString);    /* Print the received string */
+       close(broadcast_sock);
+       sleep(5);
+    }
+    
+    // exit(0);
+    // close(broadcast_sock);
+    pthread_exit(NULL);
+}
+
+
+
+
 
 //==========================================================================
 // Send/Receive Socket
@@ -108,7 +177,7 @@ void* udp_thread(void* arg){
      Fill server information
     --------------------------------*/
 	serv_addr.sin_family = AF_INET; 
-	serv_addr.sin_port = htons(PORT); 
+	serv_addr.sin_port = htons(SERVER_PORT); 
 	serv_addr.sin_addr.s_addr = inet_addr(IP_ADDR); 
 
 	/*-------------------------------
@@ -129,7 +198,7 @@ void* udp_thread(void* arg){
             0, (const struct sockaddr*)&serv_addr, 
             sizeof(serv_addr)); 
 
-        printf("2 Message sent.\n");
+        // printf("2 Message sent.\n");
     }
 	close(udp_sock); 
 }
@@ -166,11 +235,11 @@ int main(int argc, char const *argv[])
     /*---------------------------------------------------------------------
      Specify address for socket to connect to
      Specify family of address so it knows what type of address
-     Specify port; htons() converts the PORT to correct data format
+     Specify port; htons() converts the SERVER_PORT to correct data format
      so structure understands the port number and where we need connect to
     ----------------------------------------------------------------------*/
 	serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(PORT);
+    serv_addr.sin_port = htons(SERVER_PORT);
     
     /*----------------------------------------------------------
 	 Convert IPv4 and IPv6 addresses from text to binary form
@@ -198,7 +267,7 @@ int main(int argc, char const *argv[])
     else{
         printf("\nClient 2 Connection Established");
         printf("\nIP: %s",IP_ADDR);
-        printf("\nPORT: %d\n\n",PORT);
+        printf("\nPORT: %d\n\n",SERVER_PORT);
     }
     
     /*---------------------
@@ -207,21 +276,23 @@ int main(int argc, char const *argv[])
     int rc;
     pthread_t threads[NUM_THREADS];
     //printf("main(): creating input thread \n");
-    rc = pthread_create(&threads[0], NULL, &input_thread, NULL);
-    if(rc){
-        printf("Error: unable to create thread, %d \n", rc);
-        exit(-1);
-    }
     //printf("main(): creating message thread \n");
-    rc = pthread_create(&threads[1], NULL, &tcp_thread, NULL);
+    rc = pthread_create(&threads[0], NULL, &tcp_thread, NULL);
     if(rc){
         printf("Error: unable to create thread, %d \n", rc);
         exit(-1);
     }
-    rc = pthread_create(&threads[2], NULL, &udp_thread, NULL);
+
+    rc = pthread_create(&threads[1], NULL, &udp_thread, NULL);
     if(rc){
         printf("Error: unable to create thread, %d \n", rc);
         exit(-1);
+    }
+
+    rc = pthread_create(&threads[2], NULL, &broadcastReceive, NULL);
+    if(rc){
+        printf("Error: unable to create thread, %d \n", rc);
+        exit(-1);      
     }
     //join threads
     for(int i = 0; i < NUM_THREADS; i++){
