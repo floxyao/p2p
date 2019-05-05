@@ -5,12 +5,21 @@
 //Date:     4-10-19
 //Info: 
 //===============================================================================================
-#include <string.h>
 
 struct ServantData{
-    uint32_t GUID;
+    unsigned int GUID;
     //int last_update;
     //const char *my_file[50];
     char my_file[50];
+
+    char* my_files[10];
+    struct tm *time;
+    uint32_t alive;
 };
-//#pragma pack(0)
+
+struct Registry{
+    struct ServantData servants[2];
+    int size;
+};
+
+struct Registry reg;//registry of clients

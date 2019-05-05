@@ -4,51 +4,34 @@
 //Course:   CECS-327
 //Date:     4-10-19
 //===============================================================================================
-#include <stdio.h>
-#include <sys/socket.h>
-#include <stdlib.h>
-#include <netinet/in.h>
+#include <stdio.h> 
+#include <sys/socket.h> 
+#include <stdlib.h> 
+#include <netinet/in.h> 
 #include <string.h>
 #include <unistd.h>
-#include "struct.h"
+#include "helper.h"
 #include <fcntl.h>
+#include <arpa/inet.h>
 #include <pthread.h>
-#include <errno.h>
+
 #define SENDER_NAME "client 2: "
 #define IP_ADDR "127.0.0.1"
-#define TCP_PORT 8080
-#define UDP_PORT 8081
+#define PORT 8080
 #define NUM_THREADS 3
-#define MSG_LEN 100
-#define BUF_SIZE 1024
 
 //==========================================================================
 // SOCKET STUFF
 //==========================================================================
 int       sock2, udp_sock, len, n;
-struct    sockaddr_in client_addr2, serv_addr;
+struct    sockaddr_in client_addr2, serv_addr;   
+struct    ServantData my_data;
 socklen_t CLADDR_LEN = sizeof(client_addr2);
 int       inet_pton(); //get rid of warning
 char      msg[MSG_LEN];
 char      buffer[BUF_SIZE] = {0};
+char      guid[10];
 
-//==========================================================================
-// Concatenation of two strings
-//==========================================================================
-void concat(char* p, char *q){
-   int c, d;
-   c = 0;
-   while (p[c] != '\0') {
-      c++;
-   }
-   d = 0;
-   while (q[d] != '\0') {
-      p[c] = q[d];
-      d++;
-      c++;
-   }
-   p[c] = '\0';
-}
 
 //==========================================================================
 // User Input Thread
@@ -67,100 +50,88 @@ void* input_thread(void* arg){
 
 //==========================================================================
 // Send/Receive Socket
-// Sends and receives messages to client.
+// Sends and receives messages to client. 
 // *note sleep() is used because without it, the loop appears to be too fast
 // and messages aren't being sent correctly
 //==========================================================================
 void* tcp_thread(void* arg){
-    /*---------------------------------
-     Create my data object
-    ----------------------------------*/
-    struct ServantData my_data = {.GUID = 0, .my_file = "dog.txt"};
 
-    //printf("\nmy data GUID: %d", my_data.GUID);
-    int n = send(sock2, &my_data, sizeof(my_data), 0);
+    int n = send(sock2, &my_data, sizeof(my_data), 0); // send object
     bzero(buffer, sizeof(buffer));
 
-    //struct ServantData rcv_data;
+    recv(sock2, &my_data, sizeof(my_data), 0);         // get message
 
-    while(1){
-        printf("\nClient 2  TCP WAITING:\n");
-        sleep(25);
-    }
-    // recv(sock2, &my_data, sizeof(my_data), 0);
-    // printf("Client 2 received: %d\n", my_data.GUID);
+    printf("Client 2 GUID: %d\n", my_data.GUID);
 
     /*-----------------------------------
      Change socket to non-blocking
         needs to happen after registration
     -----------------------------------*/
-    // fcntl(sock2, F_SETFL, O_NONBLOCK);
+    fcntl(sock2, F_SETFL, O_NONBLOCK);
 
-    // for(;;){
-    //     //int valread = recv( sock , buffer, BUF_SIZE, 0);
-    //     //printf("Client 2 sending loop\n");
-    //     send(sock2 , msg , strlen(msg) , 0);
-    //     memset(msg, 0, MSG_LEN);                      //clear message
-    //     printf("%s",buffer);                          //display message
-    //     bzero(buffer, sizeof(buffer));                //flush buffer
-    //     sleep(1);                                     //introduce delay or else loops too fast (?)
-    // }
+    for(;;){
+        //int valread = recv( sock , buffer, BUF_SIZE, 0);
+        //printf("Client 2 sending loop\n");
+        send(sock2 , msg , strlen(msg) , 0);
+        memset(msg, 0, MSG_LEN);                      //clear message
+        printf("%s",buffer);                          //display message
+        bzero(buffer, sizeof(buffer));                //flush buffer
+        sleep(1);                                     //introduce delay or else loops too fast (?) 
+    }
 
-    //-------------SEARCH--------------------
-    // have a switch statement here
-    // select search, then send it over
-    // using send(sock , msg , strlen(msg) , 0);
-
-    close(sock2);
+    close(sock2); 
     pthread_exit(NULL);
     return NULL; //silence
 }
 
-void* udp_thread(void* arg){
-	char*  message = " HELLO from CLIENT 2";
-
+//==========================================================================
+// Send/Receive Socket
+// Sends and receives messages to client. 
+// *note sleep() is used because without it, the loop appears to be too fast
+// and messages aren't being sent correctly
+//==========================================================================
+void* udp_thread(void* arg){  
 	/*-------------------------------
-     Creating UDP socket
+     Creating UDP socket 
     --------------------------------*/
-	if ((udp_sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		printf("                    UDP socket 2 failed");
-		exit(0);
-	}
+	if ((udp_sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) { 
+		printf("UDP socket 2 failed"); 
+		exit(0); 
+	} 
+    else{
+        printf("\nClient 2 UDP socket connected\n"); 
+    }
 
-	memset(&serv_addr, 0, sizeof(serv_addr));
+	memset(&serv_addr, 0, sizeof(serv_addr)); 
 
 	/*-------------------------------
      Fill server information
     --------------------------------*/
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons(UDP_PORT);
-	serv_addr.sin_addr.s_addr = INADDR_ANY;
+	serv_addr.sin_family = AF_INET; 
+	serv_addr.sin_port = htons(PORT); 
+	serv_addr.sin_addr.s_addr = inet_addr(IP_ADDR); 
 
 	/*-------------------------------
-     Send message back to UDP server
+     Send message to UDP server
     --------------------------------*/
-    while(1){
-        printf("\nUDP SOCKET\n");
-        sendto(udp_sock, (const char*)message, strlen(message), 0, (const struct sockaddr*)&serv_addr, sizeof(serv_addr));
-        printf("\nMessage sent!\n");
-        /*-------------------------------
-        Wait for message from UDP server
-        --------------------------------*/
-        // printf("\nright before n\n");
-        // n = recvfrom(udp_sock, (char *)buffer, BUF_SIZE, MSG_WAITALL, (struct sockaddr *) &serv_addr, &len);
-        // printf("\nright after n\n");
-        // if( n < 0){
-        //     printf("recv error%d\n",errno);
-        // }
-        // buffer[n] = '\0';
-        // printf("                    Got message from UDP Server!\n");
-        // printf("                    Server: %s\n", buffer);
+    for(;;){
+        // after connecting to UDP, flag every 60 seconds
+
+        
+        sleep(5);
 
 
-        sleep(10);
+        sprintf(guid, "%d", my_data.GUID); 
+
+        //printf("\nlabel: %s\n", my_guid);
+
+        sendto(udp_sock, (const char*)guid, strlen(guid), 
+            0, (const struct sockaddr*)&serv_addr, 
+            sizeof(serv_addr)); 
+
+        printf("2 Message sent.\n");
     }
-
-     close(udp_sock);
+	close(udp_sock); 
 }
 
 //==========================================================================
@@ -169,38 +140,48 @@ void* udp_thread(void* arg){
 //        SOCK_STREAM = type of socket (TCP/UDP)
 //        0 = default protocol, TCP   */
 //==========================================================================
-int main(int argc, char const *argv[])
+int main(int argc, char const *argv[]) 
 {
+    int i = 1; // start at index 1
+
+    if(argv[1] != NULL){
+        strcpy(my_data.my_file, argv[1]);
+    }
+    else{
+        printf("\ninsert file name\n");
+        exit(0);
+    }
+
     /*---------------------------------
      Creating socket file descriptor
     ----------------------------------*/
-	  if ((sock2 = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-  	{
-  		printf("\n Socket creation error \n");
-  		return -1;
-  	}
-
-	   memset(&serv_addr, '0', sizeof(serv_addr));
-
+	if ((sock2 = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+	{ 
+		printf("\n Socket creation error \n"); 
+		return -1; 
+	}
+    
+	memset(&serv_addr, '0', sizeof(serv_addr));
+    
     /*---------------------------------------------------------------------
      Specify address for socket to connect to
      Specify family of address so it knows what type of address
-     Specify port; htons() converts the TCP_PORT to correct data format
+     Specify port; htons() converts the PORT to correct data format
      so structure understands the port number and where we need connect to
     ----------------------------------------------------------------------*/
-	  serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(TCP_PORT);
-
+	serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(PORT);
+    
     /*----------------------------------------------------------
 	 Convert IPv4 and IPv6 addresses from text to binary form
      serv_addr = struct holding info about address
      sin_addr is a struct itself containing the address itself
     -----------------------------------------------------------*/
     if(inet_pton(AF_INET, IP_ADDR, &serv_addr.sin_addr)<=0)
-  	{
-  		printf("\nInvalid address/ Address not supported \n");
-  		return -1;
-  	}
+	{ 
+		printf("\nInvalid address/ Address not supported \n"); 
+		return -1; 
+	} 
 
     /*-------------------------------------------------------
      Connect to the socket
@@ -209,17 +190,17 @@ int main(int argc, char const *argv[])
      size      = size of addr
      Returns an integer to indicate success/failure
     -------------------------------------------------------*/
-  	if (connect(sock2, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-  	{
-  		printf("\nClient 2 Connection Failed \n");
-  		return -1;
+	if (connect(sock2, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) 
+	{ 
+		printf("\nClient 2 Connection Failed \n"); 
+		return -1; 
     }
     else{
-          printf("\nClient 2 Connection Established");
-          printf("\nIP: %s",IP_ADDR);
-          printf("\nPORT: %d\n\n",TCP_PORT);
-      }
-
+        printf("\nClient 2 Connection Established");
+        printf("\nIP: %s",IP_ADDR);
+        printf("\nPORT: %d\n\n",PORT);
+    }
+    
     /*---------------------
      Create/Join threads
     ---------------------*/
@@ -249,7 +230,7 @@ int main(int argc, char const *argv[])
             printf("Joining Thread Error: %d \n", rc);
         }
     }
-
-
+    
+    
     return 0;
 }
