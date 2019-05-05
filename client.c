@@ -81,11 +81,12 @@ void* tcp_thread(void* arg){
         // printf("%s",buffer);                          //display message
         // bzero(buffer, sizeof(buffer));                //flush buffer
         // sleep(1);                                     //introduce delay or else loops too fast (?) 
-        
+
+        choice = 0; //reset choice 
         choice = menu();
    
         // printf("Got choice\n");
-        printf("Choice: %d\n", choice);
+        // printf("Choice: %d\n", choice);
         
         switch(choice){
             case 1: //find file
@@ -101,23 +102,34 @@ void* tcp_thread(void* arg){
                 memset(msg, 0, MSG_LEN); //clear msg for later use
                 printf("\nfinding file. . . .\n");
 
-                int valread = recv( sock , buffer, BUF_SIZE, 0);
+                //wait for 15 secs for valid response
+                for(int i = 0; i < 15; i++){ //
+                    int valread = recv( sock , buffer, BUF_SIZE, 0);
 
-                if(valread < 0){ //error getting response from server
-                    perror("Error: ");
-                }
-                else{ //successfully got response from server
-                    printf("%s",buffer);                          //display message
-                    bzero(buffer, sizeof(buffer));               
+                    if(valread > 0){
+                        if( strcmp(buffer, "0") == 0 ){
+                            printf("File not in registry\n");
+                            break;
+                        }
+                        else{
+                            printf("Target GUID: %s",buffer);    //display message
+                            bzero(buffer, sizeof(buffer));  
 
+                            break;
+                        }
+                        
+                    }
+                    sleep(1);
                 }
                 
+
                 break;
             }
             case 2: //exit
             {
                 printf("\nExiting. . . \n");
-                stay = false;
+                // stay = false;
+                exit(0);
                 break;
             }
             default:

@@ -149,7 +149,7 @@ void* tcp_thread(void* arg){
         //printf("\ntcp .\n");
         
         int valread = recv( new_socket , tcp_buffer, BUF_SIZE, 0);
-        int valread2 = recv( new_socket2 , tcp_buffer, BUF_SIZE, 0);
+        // int valread2 = recv( new_socket2 , tcp_buffer, BUF_SIZE, 0);
 
         printf("\nvalread: %d\n", valread);
 

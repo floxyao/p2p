@@ -188,7 +188,7 @@ void check_clients_if_alive_or_dead(int client_no){
 // returns: choice(int)
 //================================================================================
 int menu(){
-    int choice;
+    int choice = 0;
     int max = 10;
     char input[max];
 
@@ -200,7 +200,8 @@ int menu(){
     fgets(input,max, stdin);
     sscanf(input, "%d", &choice);
     // printf("Choice: %d", choice);
-
+    printf("Choice: %d\n", choice);
+    bzero(input, sizeof(input));
     return choice;
 }
 
@@ -210,18 +211,21 @@ int menu(){
 // returns: client_guid (zero if file is not in registry)
 //================================================================================
 
-int search_registry(char fileName){
+int search_registry(char fileName[BUF_SIZE]){
     int GUID; //guid of client with file
 
     printf("Got into search registry\n");
-    printf("Reg size: %d\n", reg.size);
-    printf("my file: %s\n", reg.servants[0].my_file);
+    // printf("fileName: %s\n", fileName);
+    // printf("Reg size: %d\n", reg.size);
+    // printf("my file: %s\n", reg.servants[0].my_file);
+    // printf("GUID: %d\n", reg.servants[0].GUID);
 
     for(int i = 0; i < reg.size; i++){
-        printf("Got into for loop\n");
+        // printf("Got into for loop\n");
         if( strcmp(fileName ,reg.servants[i].my_file ) == 0 ){
             printf("Found file!\n");
             GUID = reg.servants[i].GUID; //servant[0].GUID is 1
+            break;
         }
     }
 
