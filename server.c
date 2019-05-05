@@ -222,10 +222,6 @@ void* udp_thread(void* arg){
         time_info = localtime(&current_time);
         strftime(_current_time, sizeof(_current_time), "%H:%M:%S", time_info);
 
-        // printf("\n current time ");  
-        //         puts(_current_time);
-
-
         int current_time = convert_to_seconds(_current_time);
 
         /*  
@@ -236,26 +232,20 @@ void* udp_thread(void* arg){
         */
         for(int client_no=0; client_no<reg.size; client_no++){
             if( alive(client_no) == TRUE && reg.servants[client_no].GUID != GUID ){
-
                 int timestamp = convert_to_seconds(reg.servants[client_no].time_string);
 
-                //printf("\n\nclient %d\n timestamp %d\n current time %d\n\n",client_no+1,timestamp,current_time);
-
                 if(abs(timestamp - current_time) >= END_TIME){
-                    //printf("\n calculating \n");
                     reg.servants[client_no] = (struct ServantData){ .GUID = 0, .my_file = "", .time_string = "", .alive = FALSE };
                     printf("\nremoving %d from registry\n",client_no+1);
                 }
             }
             else{
-                //printf("\nupdating client %d time to ",i+1);
                 update_time(client_no);
                 printf(" @time ");  
                 puts(reg.servants[client_no].time_string);
             }
         }
         
-
         bzero(buffer, sizeof(buffer));
         sleep(1);    
     }
