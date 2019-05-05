@@ -9,12 +9,11 @@
 
 struct ServantData{
     uint32_t GUID;
-    //int last_update;
-    //const char *my_file[50];
+
     char my_file[50];
 
-    //char* my_files[10];
-    struct tm *time;
+    char time_string[9];
+
     uint32_t alive;
 };
 
