@@ -118,7 +118,7 @@ int alive(int client_no){
 //================================================================================
 void check_clients_if_alive_or_dead(int client_no){
     if(client_no == 1 && alive(client_no-1) == TRUE){       // -1 to match array index
-        printf("\n\n\nclient 1 is alive");
+        // printf("\n\n\nclient 1 is alive");
         time_t t = time(NULL);
 
         // get current time and last updated time 
@@ -141,17 +141,17 @@ void check_clients_if_alive_or_dead(int client_no){
             printf("removing from registry");
         }
         else{
-            printf("\n---------------------");
-            update_time(client_no-1);
-            show_time(client_no-1);
-            printf("---------------------\n");
+            // printf("\n---------------------");
+            // update_time(client_no-1);
+            // show_time(client_no-1);
+            // printf("---------------------\n");
         }
     }
 
     else if
         (client_no == 2 && alive(client_no-1) == TRUE){
         
-        printf("\n\n\nclient 2 is alive");
+        // printf("\n\n\nclient 2 is alive");
         time_t t = time(NULL);
         
         // get current time and last updated time
@@ -173,10 +173,10 @@ void check_clients_if_alive_or_dead(int client_no){
             printf("removing from registry"); 
         }
         else{
-            printf("\n*********************");
-            update_time(client_no-1);
-            show_time(client_no-1);
-            printf("*********************\n");
+            // printf("\n*********************");
+            // update_time(client_no-1);
+            // show_time(client_no-1);
+            // printf("*********************\n");
         }
     }
 }
@@ -202,4 +202,29 @@ int menu(){
     // printf("Choice: %d", choice);
 
     return choice;
+}
+
+//================================================================================
+// function: search_registry()
+// purpose: search registry for desired file
+// returns: client_guid (zero if file is not in registry)
+//================================================================================
+
+int search_registry(char fileName){
+    int GUID; //guid of client with file
+
+    printf("Got into search registry\n");
+    printf("Reg size: %d\n", reg.size);
+    printf("my file: %s\n", reg.servants[0].my_file);
+
+    for(int i = 0; i < reg.size; i++){
+        printf("Got into for loop\n");
+        if( strcmp(fileName ,reg.servants[i].my_file ) == 0 ){
+            printf("Found file!\n");
+            GUID = reg.servants[i].GUID; //servant[0].GUID is 1
+        }
+    }
+
+    printf("exiting search reg\n");
+    return GUID;
 }

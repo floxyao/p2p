@@ -102,11 +102,14 @@ void* tcp_thread(void* arg){
                 printf("\nfinding file. . . .\n");
 
                 int valread = recv( sock , buffer, BUF_SIZE, 0);
-                if(valread < 0){
+
+                if(valread < 0){ //error getting response from server
                     perror("Error: ");
                 }
-                else{
-                    
+                else{ //successfully got response from server
+                    printf("%s",buffer);                          //display message
+                    bzero(buffer, sizeof(buffer));               
+
                 }
                 
                 break;

@@ -91,7 +91,7 @@ void* tcp_thread(void* arg){
 	}
     else{
         /*---------------------
-            Register Client
+            Register Client 1
         ----------------------*/
         printf("\nTCP Socket 1 Connected!\n");
         struct ServantData rcv_data;
@@ -119,7 +119,7 @@ void* tcp_thread(void* arg){
 	}
     else{
         /*---------------------
-            Register Client
+            Register Client 2
         ----------------------*/
         printf("\nTCP Socket 2 Connected!\n");
         //struct ServantData rcv_data;
@@ -147,28 +147,35 @@ void* tcp_thread(void* arg){
 
     for(;;){
         //printf("\ntcp .\n");
-        int request; //if 1 then search for a file 
+        
         int valread = recv( new_socket , tcp_buffer, BUF_SIZE, 0);
         int valread2 = recv( new_socket2 , tcp_buffer, BUF_SIZE, 0);
 
-        printf("valread: %d", valread);
+        printf("\nvalread: %d\n", valread);
 
         //Error checking
-        if(valread < 0){
-            perror("Error: "); 
-        }
-        if(valread2 < 0){
-            perror("Error: "); 
-        }
+        // if(valread < 0){
+        //     perror("Error: "); 
+        // }
+        // if(valread2 < 0){
+        //     perror("Error: "); 
+        // }
 
         //check if client wants to search for file
-        // sscanf(tcp_buffer,"%d", )
+        if(valread > 0){
+            printf("Requested file: %s\n", tcp_buffer);
+            //search registry 
+            char GUID[10];
+            sprintf(GUID, "%d", search_registry(tcp_buffer)); 
+            send(new_socket, GUID, strlen(GUID), 0 ); //send guid of client with desired file( 0 if file not in registry)
+        }
+        
 
         // send(new_socket , msg , strlen(msg) , 0);
         // send(new_socket2 , msg , strlen(msg) , 0);
         // memset(msg, 0, MSG_LEN);
         //printf("\nTCP BUFFER\n");
-        printf("%s", tcp_buffer);                                       //display message
+        // printf("%s", tcp_buffer);                                       //display message
         bzero(tcp_buffer, sizeof(tcp_buffer));                              //flush buffer
         sleep(3);                                                   //introduce delay or else loops too fast (?)                                  
     }
@@ -221,11 +228,11 @@ void* udp_thread(void* arg){
     for(;;){
         n = recvfrom(udp_fd, (char *)udp_buffer, BUF_SIZE, MSG_WAITALL, (struct sockaddr *) &client_address, &len); 
         udp_buffer[n] = '\0'; 
-        printf("Ping from Client %s @ ", udp_buffer); 
+        // printf("Ping from Client %s @ ", udp_buffer); 
     
         // check who sent the UDP message
         int CLIENT_NO = udp_buffer[0] - '0';                        // convert ASCII to int  
-        printf("client id = %d", CLIENT_NO);
+        // printf("client id = %d", CLIENT_NO);
 
         check_clients_if_alive_or_dead(CLIENT_NO);
 
