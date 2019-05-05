@@ -28,6 +28,8 @@ char      msg[MSG_LEN];
 char      buffer[BUF_SIZE] = {0};
 ssize_t   n; 
 socklen_t len; 
+time_t    current_time;
+struct    tm * time_info;
 
 //================================================================================
 // Function: tcp_thread
@@ -92,12 +94,14 @@ void* tcp_thread(void* arg){
         ----------------------*/
         printf("\nTCP Socket 1 Connected!\n");
         struct ServantData rcv_data;
-        time_t t = time(NULL);           
 
         recv(new_socket , &rcv_data, sizeof(rcv_data), 0);        // get obj
+        rcv_data.GUID = reg.size+1;
 
-        rcv_data.GUID = reg.size+1;                               // GUID = size of reg cause unique
-        rcv_data.time = gmtime(&t);                               // set time stamp
+        time(&current_time);
+        time_info = localtime(&current_time);
+        strftime(rcv_data.time_string, sizeof(rcv_data.time_string), "%H:%M:%S", time_info);
+
         rcv_data.alive = TRUE;                                    // mark this client alive
         reg.servants[reg.size++] = rcv_data;
         print(rcv_data.GUID-1);                                    // print client information
@@ -125,7 +129,11 @@ void* tcp_thread(void* arg){
         recv(new_socket2 , &rcv_data, sizeof(rcv_data), 0);        // get obj
 
         rcv_data.GUID = reg.size+1;                                // GUID = size of reg cause unique
-        rcv_data.time = gmtime(&t);                                // set time stamp
+
+        time(&current_time);
+        time_info = localtime(&current_time);
+        strftime(rcv_data.time_string, sizeof(rcv_data.time_string), "%H:%M:%S", time_info);
+
         rcv_data.alive = TRUE;                                     // mark this client alive
         
         reg.servants[reg.size++] = rcv_data;
@@ -201,15 +209,24 @@ void* udp_thread(void* arg){
     /*-----------------------------------------------------
       Wait for ping from UDP client
     ------------------------------------------------------*/
+    
     for(;;){
-        time_t t = time(NULL);
-
         n = recvfrom(udp_fd, (char *)buffer, BUF_SIZE, MSG_WAITALL, (struct sockaddr *) &client_address, &len); 
         buffer[n] = '\0'; 
         
         printf("\n\n*ping* client[%s]", buffer); 
+        int GUID = buffer[0] - '0';                       
 
-        int GUID = buffer[0] - '0';                        // check who sent UDP message
+        char _current_time[9];
+        time(&current_time);
+        time_info = localtime(&current_time);
+        strftime(_current_time, sizeof(_current_time), "%H:%M:%S", time_info);
+
+        // printf("\n current time ");  
+        //         puts(_current_time);
+
+
+        int current_time = convert_to_seconds(_current_time);
 
         /*  
             1. Gets the udp message from each client
@@ -217,20 +234,27 @@ void* udp_thread(void* arg){
             3. If client is alive and less than x time, update
             4. Else remove from registry and mark dead
         */
-        if(client_is_registered(GUID) == TRUE){
-            int pingtime  = SECONDS * gmtime(&t)->tm_min + gmtime(&t)->tm_sec; // converted to seconds for easy check
-            int timestamp = SECONDS * reg.servants[GUID-1].time->tm_min + reg.servants[GUID-1].time->tm_sec;
+        for(int client_no=0; client_no<reg.size; client_no++){
+            if( alive(client_no) == TRUE && reg.servants[client_no].GUID != GUID ){
 
-            if((abs(timestamp - pingtime) < END_TIME)){ 
-                update_time(GUID-1);
-                printf(" @time ");
-                show_time(GUID-1);
+                int timestamp = convert_to_seconds(reg.servants[client_no].time_string);
+
+                //printf("\n\nclient %d\n timestamp %d\n current time %d\n\n",client_no+1,timestamp,current_time);
+
+                if(abs(timestamp - current_time) >= END_TIME){
+                    //printf("\n calculating \n");
+                    reg.servants[client_no] = (struct ServantData){ .GUID = 0, .my_file = "", .time_string = "", .alive = FALSE };
+                    printf("\nremoving %d from registry\n",client_no+1);
+                }
             }
             else{
-                reg.servants[GUID-1] = (struct ServantData){ .GUID = 0, .my_file = "", .time = NULL, .alive = FALSE };
-                printf("\nremoving from registry\n");
+                //printf("\nupdating client %d time to ",i+1);
+                update_time(client_no);
+                printf(" @time ");  
+                puts(reg.servants[client_no].time_string);
             }
         }
+        
 
         bzero(buffer, sizeof(buffer));
         sleep(1);    
