@@ -114,7 +114,7 @@ void* udp_thread(void* arg){
     for(;;){
         // after connecting to UDP, flag every 60 seconds
 
-        sleep(30);
+        sleep(10);
 
 
         
@@ -126,7 +126,7 @@ void* udp_thread(void* arg){
             sizeof(serv_addr)); 
 
         printf("1 Message sent.\n");
-
+  
         //memset(message, 0, sizeof(message));
     }
 	close(udp_sock); 
