@@ -105,6 +105,7 @@ void* tcp_thread(void* arg){
         reg.servants[reg.size++] = rcv_data;                      //transfer client data to server registry
         print(rcv_data.GUID-1);                                    // print client information
 
+        // printf("client 1 guid: %d\n", rcv_data.GUID);
         int n = send(new_socket, &rcv_data, sizeof(rcv_data), 0); // send back GUID
     }
 

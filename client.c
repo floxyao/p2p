@@ -15,6 +15,7 @@
 #include <arpa/inet.h>
 #include "helper.h"
 #include <stdbool.h>
+#include <errno.h>
 
 #define SENDER_NAME "client 1: "
 #define IP_ADDR "127.0.0.1"
@@ -31,11 +32,12 @@ struct    sockaddr_in client_addr, serv_addr, broadcastAddr, download_addr;
 struct    ServantData my_data;    
 socklen_t CLADDR_LEN = sizeof(client_addr);
 int       inet_pton(); //get rid of warning
-char      msg[MSG_LEN];
+char      targetFile[MSG_LEN];
 char      buffer[BUF_SIZE] = {0};
 char      download_message[BUF_SIZE] = {0};
 char      guid[10];
 char      fileName[MSG_LEN];
+char      file[BUF_SIZE];
 char      *broadcastMessage;
 //thread data
 int rc; 
@@ -61,7 +63,7 @@ pthread_t threads[NUM_THREADS];
 // Function: download
 // downloads file from target client
 //==========================================================================
-void connect_download(){
+void connect_download(char targetFile[MSG_LEN]){
     printf("got into connect download\n");
     /*---------------------------------
      Creating socket file descriptor
@@ -112,18 +114,58 @@ void connect_download(){
         printf("\nPORT: %d\n\n",DOWNLOAD_PORT);
     }
     
-    strcpy(download_message, "syn");
-    send(download_sock, download_message, sizeof(my_data), 0); // send syn message
+    // strcpy(download_message, "");
+    send(download_sock, targetFile, sizeof(targetFile), 0); // send target file
     printf("message sent \n");
     bzero(download_message,BUF_SIZE);
-    while(true){ //wait for message back
-        int valread = recv(download_sock, download_message, BUF_SIZE,0);
 
-        if(valread > 0){
-            printf("Testing: %s\n", download_message);
-            break;
-        }
-    }
+    // while(true){ //wait for message back
+    //     // printf("in while loop\n");
+    //     int valread = recv(download_sock, download_message, BUF_SIZE,0);
+
+        // if(valread > 0){
+            // printf("Testing: %s\n", download_message);
+            /*Receive File from Client */
+            printf("Receiving file from Server and saving it as final.txt...");
+            char* fr_name = "/home/ryan/cecs327repo/p2p/final.txt";
+            FILE *fr = fopen(fr_name, "a");
+            if(fr == NULL)
+                printf("File %s Cannot be opened.\n", fr_name);
+            else
+            {
+                bzero(file, BUF_SIZE); 
+                int fr_block_sz = 0;
+                while((fr_block_sz = recv(download_sock, file, BUF_SIZE, 0)) > 0)
+                {
+                    int write_sz = fwrite(file, sizeof(char), fr_block_sz, fr);
+                    if(write_sz < fr_block_sz)
+                    {
+                        error("File write failed.\n");
+                    }
+                    bzero(file, BUF_SIZE);
+                    if (fr_block_sz == 0 || fr_block_sz != 1024) 
+                    {
+                        break;
+                    }
+                }
+                if(fr_block_sz < 0)
+                {
+                    if (errno == EAGAIN)
+                    {
+                        printf("recv() timed out.\n");
+                    }
+                    else
+                    {
+                        fprintf(stderr, "recv() failed due to errno = %d\n", errno);
+                    }
+                }
+                printf("Ok received from server!\n");
+                fclose(fr);
+            }
+
+            // break;
+        // }
+    // }
     close(download_sock);
 }
 
@@ -190,7 +232,10 @@ void* tcp_thread(void* arg){
     int n = send(sock, &my_data, sizeof(my_data), 0);
     bzero(buffer, sizeof(buffer));
 
-    recv(sock, &my_data, sizeof(my_data), 0);
+    while(my_data.GUID < 1){
+        recv(sock, &my_data, sizeof(my_data), 0);
+    }
+    
 
     printf("Client 1 GUID: %d\n", my_data.GUID);
 
@@ -224,11 +269,11 @@ void* tcp_thread(void* arg){
                 //get file name from user
                 printf("Please enter the name of the file: ");
                 fgets(fileName ,MSG_LEN, stdin);
-                sscanf(fileName, "%s", msg);
+                sscanf(fileName, "%s", targetFile);
 
                 //send rquested file to server
-                send(sock, msg, strlen(msg), 0);
-                memset(msg, 0, MSG_LEN); //clear msg for later use
+                send(sock, targetFile, strlen(targetFile), 0);
+                
                 printf("\nfinding file. . . .\n");
 
                 //wait for 15 secs for valid response
@@ -247,7 +292,7 @@ void* tcp_thread(void* arg){
                             sscanf(buffer, "%s", target);
                             // printf("target: %s\n", target);
                             broadcast(target);
-                            connect_download();
+                            connect_download(targetFile);
                             break;
                         }
                         
@@ -256,7 +301,7 @@ void* tcp_thread(void* arg){
                 }
                 
                 bzero(buffer, sizeof(buffer));  
-
+                memset(targetFile, 0, MSG_LEN); //clear msg for later use
                 break;
             }
             case 2: //exit
