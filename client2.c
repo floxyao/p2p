@@ -28,13 +28,15 @@
 //==========================================================================
 // SOCKET STUFF
 //==========================================================================
-int       sock2, udp_sock,broadcast_sock, broadcastPermission, brd_len, n;
-struct    sockaddr_in client_addr2, serv_addr, broadcastAddr;   
+int       sock2, udp_sock,broadcast_sock, download_sock, client_sock, broadcastPermission, brd_len, n;
+struct    sockaddr_in client_addr2, serv_addr, broadcastAddr, download_addr;   
 struct    ServantData my_data;
 socklen_t CLADDR_LEN = sizeof(client_addr2);
+socklen_t down_sock_len = sizeof(download_addr);
 int       inet_pton(); //get rid of warning
 char      msg[MSG_LEN];
 char      buffer[BUF_SIZE] = {0};
+char      download_message[BUF_SIZE] = {0};
 char      guid[10];
 char      fileName[MSG_LEN];
 char      *broadcastMessage;
@@ -58,13 +60,93 @@ char      *broadcastMessage;
 // Function: download
 // downloads file from target client
 //==========================================================================
-void download(){
+void start_download(){
+    printf("got into start_download\n");
+    /*---------------------------------
+     Creating socket file descriptor
+    ----------------------------------*/
+	if ((download_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+	{ 
+		printf("\n Download Socket creation error \n"); 
+		return -1; 
+	}
+    else{
+        printf("\nTCP Socket Created\n");
+    }
 
+    download_addr.sin_family = AF_INET;
+    download_addr.sin_addr.s_addr = INADDR_ANY;
+    download_addr.sin_port = htons( DOWNLOAD_PORT);
+
+	/*-------------------------------------------
+      TCP Bind - 
+      once you have a socket, bind
+      it to a port on your machine
+    --------------------------------------------*/
+	if (bind(download_sock, (struct sockaddr *)&download_addr, sizeof(download_addr))<0)
+	{ 
+		perror("tcp bind failed"); 
+		exit(EXIT_FAILURE); 
+    }
+
+    /*-----------------------------
+      TCP Listen - 
+      original socket server_fd 
+      listens for more incoming 
+      connections
+    ------------------------------*/
+	if (listen(download_sock, 3) < 0) 
+	{ 
+		perror("listen error"); 
+		exit(EXIT_FAILURE); 
+	}
+    else{
+        printf("\nTCP Listening...\n");
+    }
+
+    /*------------------------------------------------------------------------------
+     Accept client 1 connection
+    -------------------------------------------------------------------------------*/
+	if ((client_sock = accept(download_sock, (struct sockaddr *)&download_addr, 
+					(socklen_t*)&down_sock_len)) < 0)
+	{ 
+		perror("accept error 1\n"); 
+		exit(EXIT_FAILURE); 
+	}
+    else{
+        /*--------------------------
+            Start download process
+        --------------------------*/
+        printf("\nTCP Socket 1 Connected!\n");
+        
+        time_t t = time(NULL);           
+
+
+        while(true){
+            int valread = recv(client_sock , download_message, BUF_SIZE, 0);        //check message
+
+            if(valread > 0){
+                printf("Testing: %s\n", download_message);
+                bzero(download_message, BUF_SIZE); //clear buffer to re use
+                strcpy(download_message, "syn+ack");
+                send(client_sock, download_message, BUF_SIZE, 0);
+                printf("Message sent\n");
+                bzero(download_message, BUF_SIZE);
+                break;
+            }
+        }
+
+
+        // int n = send(new_socket, &rcv_data, sizeof(rcv_data), 0); // send back GUID
+    }
+
+    close(download_sock);
+    close(client_sock);
 }
 
 //==========================================================================
 // Function: broadcast
-// Broadcasts message to find desired client
+// listens for broadcast messages
 // input: target (target GUID)
 //==========================================================================
 void* broadcastReceive(){
@@ -101,10 +183,36 @@ void* broadcastReceive(){
        {
           printf("recvfrom() failed");
        }
-       
-       recvString[recvStringLen] = '\0';
-       printf("Received: %s\n", recvString);    /* Print the received string */
-       close(broadcast_sock);
+       else{
+            recvString[recvStringLen] = '\0';
+            printf("Received: %s\n", recvString);    /* Print the received string */
+            
+            //reply
+            // strcpy(broadcastMessage, "ack");
+            // printf("ack: %s", broadcastMessage);
+            // brd_len = strlen(broadcastMessage);
+            // for (int i = 0; i < 5; i++) //send 5 ack messages back
+            // {
+            //     /* Broadcast sendString in datagram to clients every 3 seconds*/
+            //     if (sendto(broadcast_sock, broadcastMessage, brd_len, 0, (struct sockaddr *) 
+            //         &broadcastAddr, sizeof(broadcastAddr)) != brd_len)
+            //     {
+            //         printf("sendto() sent a different number of bytes than expected");
+            //     }
+            //         //DieWithError("sendto() sent a different number of bytes than expected");
+
+            //     sleep(3);   /* Avoids flooding the network */
+            // }
+            char id[10];
+            sprintf(id, "%d", my_data.GUID);
+            if(strcmp(recvString, id) == 0){
+                //initiate tcp connection
+                start_download();
+            }
+           
+
+       }
+       close(broadcast_sock); //close socket
        sleep(5);
     }
     
@@ -138,15 +246,15 @@ void* tcp_thread(void* arg){
     -----------------------------------*/
     fcntl(sock2, F_SETFL, O_NONBLOCK);
 
-    for(;;){
-        //int valread = recv( sock , buffer, BUF_SIZE, 0);
-        //printf("Client 2 sending loop\n");
-        send(sock2 , msg , strlen(msg) , 0);
-        memset(msg, 0, MSG_LEN);                      //clear message
-        printf("%s",buffer);                          //display message
-        bzero(buffer, sizeof(buffer));                //flush buffer
-        sleep(1);                                     //introduce delay or else loops too fast (?) 
-    }
+    // for(;;){
+    //     //int valread = recv( sock , buffer, BUF_SIZE, 0);
+    //     //printf("Client 2 sending loop\n");
+    //     send(sock2 , msg , strlen(msg) , 0);
+    //     memset(msg, 0, MSG_LEN);                      //clear message
+    //     printf("%s",buffer);                          //display message
+    //     bzero(buffer, sizeof(buffer));                //flush buffer
+    //     sleep(1);                                     //introduce delay or else loops too fast (?) 
+    // }
 
     close(sock2); 
     pthread_exit(NULL);

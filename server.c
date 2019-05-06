@@ -122,7 +122,7 @@ void* tcp_thread(void* arg){
             Register Client 2
         ----------------------*/
         printf("\nTCP Socket 2 Connected!\n");
-        //struct ServantData rcv_data;
+        struct ServantData rcv_data;
         time_t t = time(NULL);
 
         recv(new_socket2 , &rcv_data, sizeof(rcv_data), 0);        // get obj
@@ -167,6 +167,7 @@ void* tcp_thread(void* arg){
             //search registry 
             char GUID[10];
             sprintf(GUID, "%d", search_registry(tcp_buffer)); 
+            printf("GUID before sending: %s\n", GUID);
             send(new_socket, GUID, strlen(GUID), 0 ); //send guid of client with desired file( 0 if file not in registry)
         }
         

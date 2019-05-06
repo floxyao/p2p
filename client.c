@@ -26,13 +26,14 @@
 
 
 //global variables
-int       sock, udp_sock, broadcast_sock, broadcastPermission, brd_len, n;
-struct    sockaddr_in client_addr, serv_addr, broadcastAddr; 
+int       sock, udp_sock, broadcast_sock, download_sock, broadcastPermission, brd_len, n;
+struct    sockaddr_in client_addr, serv_addr, broadcastAddr, download_addr; 
 struct    ServantData my_data;    
 socklen_t CLADDR_LEN = sizeof(client_addr);
 int       inet_pton(); //get rid of warning
 char      msg[MSG_LEN];
 char      buffer[BUF_SIZE] = {0};
+char      download_message[BUF_SIZE] = {0};
 char      guid[10];
 char      fileName[MSG_LEN];
 char      *broadcastMessage;
@@ -60,13 +61,75 @@ pthread_t threads[NUM_THREADS];
 // Function: download
 // downloads file from target client
 //==========================================================================
-void download(){
+void connect_download(){
+    printf("got into connect download\n");
+    /*---------------------------------
+     Creating socket file descriptor
+    ----------------------------------*/
+	if ((download_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+	{ 
+		printf("\n Socket creation error \n"); 
+		return -1; 
+	}
+    
+	memset(&download_addr, '0', sizeof(download_addr));
+    
+    /*---------------------------------------------------------------------
+     Specify address for socket to connect to
+     Specify family of address so it knows what type of address
+     Specify SERVER_PORT; htons() converts the SERVER_PORT to correct data format
+     so structure understands the SERVER_PORT number and where we need connect to
+    ----------------------------------------------------------------------*/
+	download_addr.sin_family = AF_INET;
+    download_addr.sin_port = htons(DOWNLOAD_PORT);
+    
+    /*----------------------------------------------------------
+	 Convert IPv4 and IPv6 addresses from text to binary form
+     serv_addr = struct holding info about address
+     sin_addr is a struct itself containing the address itself
+    -----------------------------------------------------------*/
+    if(inet_pton(AF_INET, IP_ADDR, &download_addr.sin_addr)<=0)
+	{ 
+		printf("\nInvalid address/ Address not supported \n"); 
+		return -1; 
+	} 
 
+    /*-------------------------------------------------------
+     Connect to the socket
+     sock      = our socket
+     serv_addr = cast our address to the right struct type
+     size      = size of addr
+     Returns an integer to indicate success/failure
+    -------------------------------------------------------*/
+	if (connect(download_sock, (struct sockaddr *)&download_addr, sizeof(download_addr)) < 0) 
+	{ 
+		printf("\np2p Connection Failed \n"); 
+		perror("Error: ");
+    }
+    else{
+        printf("\np2p Connection Established");
+        printf("\nIP: %s",IP_ADDR);
+        printf("\nPORT: %d\n\n",DOWNLOAD_PORT);
+    }
+    
+    strcpy(download_message, "syn");
+    send(download_sock, download_message, sizeof(my_data), 0); // send syn message
+    printf("message sent \n");
+    bzero(download_message,BUF_SIZE);
+    while(true){ //wait for message back
+        int valread = recv(download_sock, download_message, BUF_SIZE,0);
+
+        if(valread > 0){
+            printf("Testing: %s\n", download_message);
+            break;
+        }
+    }
+    close(download_sock);
 }
 
 //==========================================================================
 // Function: broadcast
-// Broadcasts message to find desired client
+// Broadcasts message to find desired client to connect with
 // input: target (target GUID)
 //==========================================================================
 void broadcast(char target[10]){
@@ -110,7 +173,7 @@ void broadcast(char target[10]){
          }
              //DieWithError("sendto() sent a different number of bytes than expected");
 
-        sleep(3);   /* Avoids flooding the network */
+        sleep(1);   /* Avoids flooding the network */
     }
     /* NOT REACHED */
     close(broadcast_sock);
@@ -171,19 +234,20 @@ void* tcp_thread(void* arg){
                 //wait for 15 secs for valid response
                 for(int i = 0; i < 15; i++){ //
                     int valread = recv( sock , buffer, BUF_SIZE, 0);
-
+                    printf("buffer right after recv: %s\n", buffer);
                     if(valread > 0){
                         if( strcmp(buffer, "0") == 0 ){
                             printf("File not in registry\n");
                             break; 
                         }
-                        else{ //start fetching process
-                            printf("Target GUID: %s\n",buffer);    //display message
+                        if(buffer[0] >= '0' && buffer[0] <= '9'){ //start fetching process
+                            printf("Target GUID: %s\n",buffer);    //display target guid
                             // bzero(buffer, sizeof(buffer));  
                             char target[10];
                             sscanf(buffer, "%s", target);
                             // printf("target: %s\n", target);
                             broadcast(target);
+                            connect_download();
                             break;
                         }
                         
@@ -230,7 +294,7 @@ void* udp_thread(void* arg){
 		exit(0); 
 	} 
     else{
-        printf("\nClient 1 UDP socket connected\n"); 
+        // printf("\nClient 1 UDP socket connected\n"); 
     }
 
 	memset(&serv_addr, 0, sizeof(serv_addr)); 
@@ -345,7 +409,7 @@ int main(int argc, char const *argv[])
     /*-----------------------------------
      Change the socket to non-blocking
     -----------------------------------*/
-    //fcntl(sock, F_SETFL, O_NONBLOCK);
+    fcntl(sock, F_SETFL, O_NONBLOCK);
     
     /*---------------------
     Create/Join threads
