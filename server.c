@@ -123,8 +123,6 @@ void* tcp_thread(void* arg){
             Register Client
         ----------------------*/
         printf("\nTCP Socket 2 Connected!\n");
-        //struct ServantData rcv_data;
-        time_t t = time(NULL);
 
         recv(new_socket2 , &rcv_data, sizeof(rcv_data), 0);        // get obj
 
