@@ -114,7 +114,7 @@ void* udp_thread(void* arg){
     for(;;){
         // after connecting to UDP, flag every 60 seconds
 
-        sleep(10);
+        sleep(15);
 
 
         
