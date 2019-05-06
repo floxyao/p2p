@@ -9,7 +9,7 @@
 #include "time.h"
 #define TRUE 1
 #define FALSE 0
-#define END_TIME 10
+#define END_TIME 30
 #define SECONDS 60
 #define NUM_FILES 1
 #define MSG_LEN 100
@@ -113,7 +113,7 @@ void print(int index){
 //================================================================================
 // function: alive
 // returns 1 if client is alive
-// returns 2 if client is deadqqqqqqq
+// returns 2 if client is dead
 //================================================================================
 int alive(int index){
     return reg.servants[index].alive;
