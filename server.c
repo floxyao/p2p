@@ -154,13 +154,7 @@ void* tcp_thread(void* arg){
 
         printf("\nvalread: %d\n", valread);
 
-        //Error checking
-        // if(valread < 0){
-        //     perror("Error: "); 
-        // }
-        // if(valread2 < 0){
-        //     perror("Error: "); 
-        // }
+
 
         //check if client wants to search for file
         if(valread > 0){
@@ -172,13 +166,8 @@ void* tcp_thread(void* arg){
             send(new_socket, GUID, strlen(GUID), 0 ); //send guid of client with desired file( 0 if file not in registry)
         }
         
-
-        // send(new_socket , msg , strlen(msg) , 0);
-        // send(new_socket2 , msg , strlen(msg) , 0);
-        // memset(msg, 0, MSG_LEN);
-        //printf("\nTCP BUFFER\n");
-        // printf("%s", tcp_buffer);                                       //display message
-        bzero(tcp_buffer, sizeof(tcp_buffer));                              //flush buffer
+                                     
+        bzero(tcp_buffer, sizeof(tcp_buffer));     //display message                     //flush buffer
         sleep(3);                                                   //introduce delay or else loops too fast (?)                                  
     }
 

@@ -31,6 +31,7 @@ int       sock, udp_sock, broadcast_sock, download_sock, broadcastPermission, br
 struct    sockaddr_in client_addr, serv_addr, broadcastAddr, download_addr; 
 struct    ServantData my_data;    
 socklen_t CLADDR_LEN = sizeof(client_addr);
+socklen_t down_sock_len = sizeof(download_addr);
 int       inet_pton(); //get rid of warning
 char      targetFile[MSG_LEN];
 char      buffer[BUF_SIZE] = {0};
@@ -45,26 +46,115 @@ pthread_t threads[NUM_THREADS];
 
 
 //==========================================================================
-// User Input Thread
-// Gets the message input from user.
+// Function: download
+// downloads file from target client
 //==========================================================================
-// void* input_thread(void* arg){
-//     for(;;){
-//         char label[] = SENDER_NAME;
-//         fgets(msg, MSG_LEN, stdin);
-//         concat(label, msg); //concat label to message to identify sender
-//         strcpy(msg, label);
-//     }
-//     pthread_exit(NULL);
-//     return NULL;
-// }
+void start_download(){
+    // printf("got into start_download\n");
+    /*---------------------------------
+     Creating socket file descriptor
+    ----------------------------------*/
+	if ((download_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+	{ 
+		printf("\n Download Socket creation error \n"); 
+		return -1; 
+	}
+    else{
+        printf("\nTCP download Socket Created\n");
+    }
+
+    download_addr.sin_family = AF_INET;
+    download_addr.sin_addr.s_addr = INADDR_ANY;
+    download_addr.sin_port = htons( DOWNLOAD_PORT);
+
+
+    //reuse ports and addr
+    int reuse = 1;
+    if (setsockopt(download_sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuse, sizeof(reuse)) < 0)
+        perror("setsockopt(SO_REUSEADDR) failed");
+
+    #ifdef SO_REUSEPORT
+        if (setsockopt(download_sock, SOL_SOCKET, SO_REUSEPORT, (const char*)&reuse, sizeof(reuse)) < 0) 
+            perror("setsockopt(SO_REUSEPORT) failed");
+    #endif
+
+	/*-------------------------------------------
+      TCP Bind - 
+      once you have a socket, bind
+      it to a port on your machine
+    --------------------------------------------*/
+	if (bind(download_sock, (struct sockaddr *)&download_addr, sizeof(download_addr))<0)
+	{ 
+		perror("tcp bind failed"); 
+		exit(EXIT_FAILURE); 
+    }
+
+    /*-----------------------------
+      TCP Listen - 
+      original socket server_fd 
+      listens for more incoming 
+      connections
+    ------------------------------*/
+	if (listen(download_sock, 3) < 0) 
+	{ 
+		perror("listen error"); 
+		exit(EXIT_FAILURE); 
+	}
+    else{
+        printf("\nTCP Listening...\n");
+    }
+
+    /*------------------------------------------------------------------------------
+     Accept client 1 connection
+    -------------------------------------------------------------------------------*/
+	if ((download_sock = accept(download_sock, (struct sockaddr *)&download_addr, 
+					(socklen_t*)&down_sock_len)) < 0)
+	{ 
+		perror("accept error 1\n"); 
+		exit(EXIT_FAILURE); 
+	}
+    else{
+        /*--------------------------
+            Start download process
+        --------------------------*/
+        printf("\nTCP Socket 1 Connected!\n");
+        
+        // time_t t = time(NULL);           
+
+
+        while(true){
+            int valread = recv(download_sock , download_message, BUF_SIZE, 0);   //check target file
+
+            if(valread > 0){
+                strcpy(targetFile, download_message );
+                printf("Target file: %s\n", targetFile);
+                // printf("Testing: %s\n", download_message);
+                bzero(download_message, BUF_SIZE); //clear buffer to re use
+                strcpy(download_message, "syn+ack");
+                send(down_sock_len, download_message, BUF_SIZE, 0);
+                printf("Message sent\n");
+                bzero(download_message, BUF_SIZE);
+                
+
+            
+                break;
+            }
+        }
+
+
+        // int n = send(new_socket, &rcv_data, sizeof(rcv_data), 0); // send back GUID
+    }
+
+    close(download_sock);
+}
+
 
 //==========================================================================
 // Function: download
 // downloads file from target client
 //==========================================================================
 void connect_download(char targetFile[MSG_LEN]){
-    printf("got into connect download\n");
+    // printf("got into connect download\n");
     /*---------------------------------
      Creating socket file descriptor
     ----------------------------------*/
@@ -115,57 +205,79 @@ void connect_download(char targetFile[MSG_LEN]){
     }
     
     // strcpy(download_message, "");
+    printf("target: %s", targetFile);
     send(download_sock, targetFile, sizeof(targetFile), 0); // send target file
-    printf("message sent \n");
+    // printf("message sent \n");
+    // printf("message: %s\n", download_message);
     bzero(download_message,BUF_SIZE);
 
-    // while(true){ //wait for message back
-    //     // printf("in while loop\n");
-    //     int valread = recv(download_sock, download_message, BUF_SIZE,0);
+    while(true){ //wait for message back
+        // printf("in while loop\n");
+        int valread = recv(download_sock, download_message, BUF_SIZE,0);
 
-        // if(valread > 0){
-            // printf("Testing: %s\n", download_message);
+        if(valread > 0){
+            printf("Testing: %s\n", download_message);
+           
+           /////////////////////////////////////////////////////////////////////////////////////
             /*Receive File from Client */
-            printf("Receiving file from Server and saving it as final.txt...");
-            char* fr_name = "/home/ryan/cecs327repo/p2p/final.txt";
-            FILE *fr = fopen(fr_name, "a");
-            if(fr == NULL)
-                printf("File %s Cannot be opened.\n", fr_name);
-            else
-            {
-                bzero(file, BUF_SIZE); 
-                int fr_block_sz = 0;
-                while((fr_block_sz = recv(download_sock, file, BUF_SIZE, 0)) > 0)
-                {
-                    int write_sz = fwrite(file, sizeof(char), fr_block_sz, fr);
-                    if(write_sz < fr_block_sz)
-                    {
-                        error("File write failed.\n");
-                    }
-                    bzero(file, BUF_SIZE);
-                    if (fr_block_sz == 0 || fr_block_sz != 1024) 
-                    {
-                        break;
-                    }
-                }
-                if(fr_block_sz < 0)
-                {
-                    if (errno == EAGAIN)
-                    {
-                        printf("recv() timed out.\n");
-                    }
-                    else
-                    {
-                        fprintf(stderr, "recv() failed due to errno = %d\n", errno);
-                    }
-                }
-                printf("Ok received from server!\n");
-                fclose(fr);
-            }
-
-            // break;
-        // }
-    // }
+            // printf("Receiving file from Server and saving it as final.txt...\n");
+            // char* fr_name = "/home/ryan/cecs327repo/p2p/final.txt";
+            // FILE *fr = fopen(fr_name, "a");
+            // if(fr == NULL)
+            //     printf("File %s Cannot be opened.\n", fr_name);
+            // else
+            // {
+            //     printf("else statement\n");
+            //     bzero(file, BUF_SIZE); 
+            //     int fr_block_sz = 0;
+            //     int write_sz;
+            //     while( (fr_block_sz = recv(download_sock, file, BUF_SIZE, 0)) <= 0 ){
+            //         printf(".\n");
+            //     } 
+            //     while(true)
+            //     {
+            //         printf("while loop\n");
+            //         write_sz = fwrite(file, sizeof(char), fr_block_sz, fr);
+            //         if(write_sz < fr_block_sz)
+            //         {
+            //             error("File write failed.\n");
+            //         }
+            //         bzero(file, BUF_SIZE);
+            //         //check file content//////////////////////
+            //         int c;
+            //         printf("check file content: ");
+            //         while(1) {
+            //             c = fgetc(fr);
+            //             if( feof(fr) ) { 
+            //                 break ;
+            //             }
+            //             printf("%c", c);
+            //         }
+            //          //////////////////////////////////////////
+            //         if (fr_block_sz == 0 || fr_block_sz != 1024) 
+            //         {
+            //             break;
+            //         }
+            //     }
+            //     if(fr_block_sz < 0)
+            //     {
+            //         if (errno == EAGAIN)
+            //         {
+            //             printf("recv() timed out.\n");
+            //         }
+            //         else
+            //         {
+            //             fprintf(stderr, "recv() failed due to errno = %d\n", errno);
+            //         }
+            //     }
+            //     printf("Ok received from client!\n");
+            //     printf("fr block sz: %d\n", fr_block_sz);
+            //     fclose(fr);
+            // }
+            ///////////////////////////////////////////////////////////////////////////////////////////
+            break;
+        }
+    }
     close(download_sock);
 }
 
@@ -175,7 +287,7 @@ void connect_download(char targetFile[MSG_LEN]){
 // input: target (target GUID)
 //==========================================================================
 void broadcast(char target[10]){
-    printf("got into broadcast\n");
+    // printf("got into broadcast\n");
     broadcastMessage = target;
     printf("broadcastMessage: %s\n", broadcastMessage);
 
@@ -279,7 +391,7 @@ void* tcp_thread(void* arg){
                 //wait for 15 secs for valid response
                 for(int i = 0; i < 15; i++){ //
                     int valread = recv( sock , buffer, BUF_SIZE, 0);
-                    printf("buffer right after recv: %s\n", buffer);
+                    // printf("buffer right after recv: %s\n", buffer);
                     if(valread > 0){
                         if( strcmp(buffer, "0") == 0 ){
                             printf("File not in registry\n");

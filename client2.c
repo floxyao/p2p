@@ -42,27 +42,14 @@ char      guid[10];
 // char      fileName[MSG_LEN];
 char      *broadcastMessage;
 
-//==========================================================================
-// User Input Thread
-// Gets the message input from user.
-//==========================================================================
-// void* input_thread(void* arg){
-//     for(;;){
-//         char label[] = SENDER_NAME;
-//         fgets(msg, MSG_LEN, stdin);
-//         concat(label, msg); //concat label to message to identify sender
-//         strcpy(msg, label);
-//     }
-//     pthread_exit(NULL);
-//     return NULL;
-// }
+
 
 //==========================================================================
 // Function: download
 // downloads file from target client
 //==========================================================================
 void start_download(){
-    printf("got into start_download\n");
+    // printf("got into start_download\n");
     /*---------------------------------
      Creating socket file descriptor
     ----------------------------------*/
@@ -72,12 +59,23 @@ void start_download(){
 		return -1; 
 	}
     else{
-        printf("\nTCP Socket Created\n");
+        printf("\nTCP download Socket Created\n");
     }
 
     download_addr.sin_family = AF_INET;
     download_addr.sin_addr.s_addr = INADDR_ANY;
     download_addr.sin_port = htons( DOWNLOAD_PORT);
+
+
+    //reuse ports and addr
+    int reuse = 1;
+    if (setsockopt(download_sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuse, sizeof(reuse)) < 0)
+        perror("setsockopt(SO_REUSEADDR) failed");
+
+    #ifdef SO_REUSEPORT
+        if (setsockopt(download_sock, SOL_SOCKET, SO_REUSEPORT, (const char*)&reuse, sizeof(reuse)) < 0) 
+            perror("setsockopt(SO_REUSEPORT) failed");
+    #endif
 
 	/*-------------------------------------------
       TCP Bind - 
@@ -108,7 +106,7 @@ void start_download(){
     /*------------------------------------------------------------------------------
      Accept client 1 connection
     -------------------------------------------------------------------------------*/
-	if ((client_sock = accept(download_sock, (struct sockaddr *)&download_addr, 
+	if ((download_sock = accept(download_sock, (struct sockaddr *)&download_addr, 
 					(socklen_t*)&down_sock_len)) < 0)
 	{ 
 		perror("accept error 1\n"); 
@@ -124,65 +122,20 @@ void start_download(){
 
 
         while(true){
-            int valread = recv(client_sock , download_message, BUF_SIZE, 0);   //check target file
+            int valread = recv(download_sock , download_message, BUF_SIZE, 0);   //check target file
 
             if(valread > 0){
                 strcpy(targetFile, download_message );
                 printf("Target file: %s\n", targetFile);
                 // printf("Testing: %s\n", download_message);
-                // bzero(download_message, BUF_SIZE); //clear buffer to re use
-                // strcpy(download_message, "syn+ack");
-                // send(client_sock, download_message, BUF_SIZE, 0);
-                // printf("Message sent\n");
-                // bzero(download_message, BUF_SIZE);
-
-                /* Send File to client */
-                char fs_name[MSG_LEN];  //path to folder
-
-                strcpy(fs_name,"/home/ryan/cecs327repo/p2p/"); 
-
-                printf("fs name: %s\n", fs_name);
-                // strcat(fs_name,targetFile); //append target file to path
-                concat(fs_name,targetFile);
-                printf("target file: %s\n", fs_name);
-
-                char sdbuf[BUF_SIZE]; 
-                printf("Sending %s...\n", fs_name);
-
-                FILE *fs = fopen(fs_name, "r");
-                printf("created file object\n");
-                if(fs == NULL)
-                {
-                    printf("ERROR: File %s not found.\n", fs_name);
-                    exit(1);
-                }
-
-                //check file content//////////////////////
-                int c;
-                while(1) {
-                    c = fgetc(fs);
-                    if( feof(fs) ) { 
-                        break ;
-                    }
-                    printf("%c", c);
-                }
-                //////////////////////////////////////////
-                bzero(sdbuf, BUF_SIZE); 
-                int fs_block_sz; 
-                //int success = 0;
-                while((fs_block_sz = fread(sdbuf, sizeof(char), BUF_SIZE, fs))>0)
-                {
-                    if(send(download_sock, sdbuf, fs_block_sz, 0) < 0)
-                    {
-                        printf("ERROR: Failed to send file %s.\n", fs_name);
-                        break;
-                    }
-                    bzero(sdbuf, BUF_SIZE);
-                }
+                bzero(download_message, BUF_SIZE); //clear buffer to re use
+                strcpy(download_message, "syn+ack");
+                send(client_sock, download_message, BUF_SIZE, 0);
+                printf("Message sent\n");
+                bzero(download_message, BUF_SIZE);
                 
-                printf("\nOk File %s was Sent!\n", fs_name);
-                bzero(targetFile,sizeof(targetFile));
-                bzero(download_message,sizeof(download_message));
+
+            
                 break;
             }
         }
@@ -192,7 +145,85 @@ void start_download(){
     }
 
     close(download_sock);
-    close(client_sock);
+    // close(client_sock);
+}
+
+
+//==========================================================================
+// Function: download
+// downloads file from target client
+//==========================================================================
+void connect_download(char targetFile[MSG_LEN]){
+    // printf("got into connect download\n");
+    /*---------------------------------
+     Creating socket file descriptor
+    ----------------------------------*/
+	if ((download_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+	{ 
+		printf("\n Socket creation error \n"); 
+		return -1; 
+	}
+    
+	memset(&download_addr, '0', sizeof(download_addr));
+    
+    /*---------------------------------------------------------------------
+     Specify address for socket to connect to
+     Specify family of address so it knows what type of address
+     Specify SERVER_PORT; htons() converts the SERVER_PORT to correct data format
+     so structure understands the SERVER_PORT number and where we need connect to
+    ----------------------------------------------------------------------*/
+	download_addr.sin_family = AF_INET;
+    download_addr.sin_port = htons(DOWNLOAD_PORT);
+    
+    /*----------------------------------------------------------
+	 Convert IPv4 and IPv6 addresses from text to binary form
+     serv_addr = struct holding info about address
+     sin_addr is a struct itself containing the address itself
+    -----------------------------------------------------------*/
+    if(inet_pton(AF_INET, IP_ADDR, &download_addr.sin_addr)<=0)
+	{ 
+		printf("\nInvalid address/ Address not supported \n"); 
+		return -1; 
+	} 
+
+    /*-------------------------------------------------------
+     Connect to the socket
+     sock      = our socket
+     serv_addr = cast our address to the right struct type
+     size      = size of addr
+     Returns an integer to indicate success/failure
+    -------------------------------------------------------*/
+	if (connect(download_sock, (struct sockaddr *)&download_addr, sizeof(download_addr)) < 0) 
+	{ 
+		printf("\np2p Connection Failed \n"); 
+		perror("Error: ");
+    }
+    else{
+        printf("\np2p Connection Established");
+        printf("\nIP: %s",IP_ADDR);
+        printf("\nPORT: %d\n\n",DOWNLOAD_PORT);
+    }
+    
+    // strcpy(download_message, "");
+    printf("target: %s", targetFile);
+    send(download_sock, targetFile, sizeof(targetFile), 0); // send target file
+    // printf("message sent \n");
+    // printf("message: %s\n", download_message);
+    bzero(download_message,BUF_SIZE);
+
+    while(true){ //wait for message back
+        // printf("in while loop\n");
+        int valread = recv(download_sock, download_message, BUF_SIZE,0);
+
+        if(valread > 0){
+            printf("Testing: %s\n", download_message);
+           
+           
+    
+            break;
+        }
+    }
+    close(download_sock);
 }
 
 //==========================================================================
