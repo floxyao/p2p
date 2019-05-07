@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #define TRUE 1
 #define FALSE 0
-#define END_TIME 10
+#define END_TIME 30
 #define SECONDS 60
 #define NUM_CLIENTS 2
 #define NUM_FILES 1
@@ -44,24 +44,46 @@ void concat(char* p, char *q){
 // 
 //
 //================================================================================
-void update_time(int client_no){
-    time_t t = time(NULL);
-    reg.servants[client_no].time->tm_hour = gmtime(&t)->tm_hour;
-    reg.servants[client_no].time->tm_min = gmtime(&t)->tm_min;
-    reg.servants[client_no].time->tm_sec = gmtime(&t)->tm_sec;
-}
+void update_time(int index){
+    // time_t t = time(NULL);
+    // reg.servants[index].time->tm_hour = gmtime(&t)->tm_hour;
+    // reg.servants[index].time->tm_min = gmtime(&t)->tm_min;
+    // reg.servants[index].time->tm_sec = gmtime(&t)->tm_sec;
 
+    time_t current_time;
+    struct tm * time_info;
+    time(&current_time);
+    time_info = localtime(&current_time);
+    strftime(reg.servants[index].time_string, sizeof(reg.servants[index].time_string), "%H:%M:%S", time_info);
+    //puts(reg.servants[index].time_string);                               // GUID = size of reg cause unique
+}
 //================================================================================
-// function: show_time
-// 
-//
+// Function: convert_to_seconds
+// Purpose: I'm extracting the 10s digit of the minutes and both digits of seconds
+//          because we need to know every 200s. If I convert the time to seconds
+//          it's a matter of simple arithmetic to calculate if 200s has passed
 //================================================================================
-void show_time(int client_no){
-    time_t t = time(NULL);
-    printf("\nUpdated time stamp\n");
-    printf("%d:",  reg.servants[client_no].time->tm_hour);
-    printf("%d:",  reg.servants[client_no].time->tm_min);
-    printf("%d\n", reg.servants[client_no].time->tm_sec);
+int convert_to_seconds(char time_string[9]){
+    int min;
+
+    // 1:45:09
+    // extract 10s digit of the time which is 5
+    // if that digit is 0, the value is 10 since ASCII is 0-9
+    if(time_string[4] == '0'){
+        min = 10;
+    }
+    else{ // else convert the char to int  '9' -> 9
+        min = time_string[4] - '0';
+    }
+
+    // 1:45:09
+    // extract 10s digit of the time which is 0 and 9
+    int temp = (time_string[6] - '0') * 10;
+    int temp2 = time_string[7] - '0';
+    int sec = temp + temp2;
+
+    // return the conversion to seconds
+    return SECONDS * min + sec;
 }
 
 //================================================================================
@@ -70,30 +92,28 @@ void show_time(int client_no){
 //          files that the client has
 //          client's timestamp
 //================================================================================
-void print(int GUID){
+void print(int index){
     printf("\n====================================\n");
 
-    if(GUID < 0){
+    if(index < 0){
         printf("Invalid GUID");
         exit(0);
     }
 
-    if(reg.servants[GUID].alive == TRUE){
+    if(reg.servants[index].alive == TRUE){
         printf("Client %d GUID: %d", 
-                GUID+1, reg.servants[GUID].GUID); // client_no is passed in as size of array 
+                index+1, reg.servants[index].GUID); // client_no is passed in as size of array 
                                                     // size of array was 0 when first called, so +1 
                                                     // to make the client GUID start at 1
         printf("\nClient %d files: %s", 
-                GUID+1, reg.servants[GUID].my_file);
+                index+1, reg.servants[index].my_file);
 
 
         // printf("\nClient %d files %s", 
         //         GUID+1, reg.servants[GUID].my_files[0]);
 
-        printf("\nClient %d time: %d:%d:%d", 
-                GUID+1, reg.servants[GUID].time->tm_hour,
-                        reg.servants[GUID].time->tm_min,
-                        reg.servants[GUID].time->tm_sec);
+        printf("\nClient %d timestamp ", index+1);
+        puts(reg.servants[index].time_string);     
     }
     
     printf("\n====================================\n");
@@ -101,86 +121,12 @@ void print(int GUID){
 
 //================================================================================
 // function: alive
-// 
-//
+// returns 1 if client is alive
+// returns 2 if client is dead
 //================================================================================
-int alive(int client_no){
-    return reg.servants[client_no].alive;
+int alive(int index){
+    return reg.servants[index].alive;
 }
-
-//================================================================================
-// function: check_clients_if_alive_or_dead
-//    1. Gets the udp message from each client
-//    2. Check which client it came from
-//    3. If client is alive then see when the last ping was
-//    4. If it was less than X time then update time stamp
-//    5. Else remove from registry and mark dead
-//================================================================================
-void check_clients_if_alive_or_dead(int client_no){
-    if(client_no == 1 && alive(client_no-1) == TRUE){       // -1 to match array index
-        // printf("\n\n\nclient 1 is alive");
-        time_t t = time(NULL);
-
-        // get current time and last updated time 
-
-        int pingtime  = SECONDS * gmtime(&t)->tm_min + gmtime(&t)->tm_sec;
-        int timestamp = SECONDS * reg.servants[0].time->tm_min + reg.servants[0].time->tm_sec;
-
-
-        // this block checks the client is dead or alive
-        // convert to seconds for easy time stamp check
-        if((abs(timestamp - pingtime) >= END_TIME)){
-
-            // make unavailable from registry
-            reg.servants[client_no-1] = (struct ServantData){
-                                           .GUID = 0, 
-                                           .my_file = "", 
-                                           .time = NULL,
-                                           .alive = FALSE};
-
-            printf("removing from registry");
-        }
-        else{
-            // printf("\n---------------------");
-            // update_time(client_no-1);
-            // show_time(client_no-1);
-            // printf("---------------------\n");
-        }
-    }
-
-    else if
-        (client_no == 2 && alive(client_no-1) == TRUE){
-        
-        // printf("\n\n\nclient 2 is alive");
-        time_t t = time(NULL);
-        
-        // get current time and last updated time
-        // convert to seconds for easy time stamp check
-        int pingtime  = SECONDS * gmtime(&t)->tm_min + gmtime(&t)->tm_sec;
-        int timestamp = SECONDS * reg.servants[1].time->tm_min + reg.servants[1].time->tm_sec;
-        
-
-        // this block checks the client is dead or alive
-
-        if((abs(timestamp - pingtime) >= END_TIME)){
-            // make unavailable from registry
-            reg.servants[client_no-1] = (struct ServantData){
-                                           .GUID = 0, 
-                                           .my_file = "", 
-                                           .time = NULL,
-                                           .alive = FALSE};
-
-            printf("removing from registry"); 
-        }
-        else{
-            // printf("\n*********************");
-            // update_time(client_no-1);
-            // show_time(client_no-1);
-            // printf("*********************\n");
-        }
-    }
-}
-
 
 //================================================================================
 // function: menu

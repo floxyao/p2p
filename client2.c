@@ -223,6 +223,7 @@ void connect_download(char targetFile[MSG_LEN]){
             break;
         }
     }
+    printf("closing socket. . . .\n");
     close(download_sock);
 }
 
@@ -377,7 +378,7 @@ void* udp_thread(void* arg){
         // after connecting to UDP, flag every 60 seconds
 
         
-        sleep(5);
+        sleep(15);
 
 
         sprintf(guid, "%d", my_data.GUID); 
