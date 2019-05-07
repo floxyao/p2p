@@ -146,7 +146,7 @@ int menu(){
     fgets(input,max, stdin);
     sscanf(input, "%d", &choice);
     // printf("Choice: %d", choice);
-    printf("Choice: %d\n", choice);
+    // printf("Choice: %d\n", choice);
     bzero(input, sizeof(input));
     return choice;
 }
