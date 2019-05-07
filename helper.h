@@ -161,11 +161,7 @@ int search_registry(char fileName[BUF_SIZE]){
     int GUID = 0; //guid of client with file
 
     printf("Got into search registry\n");
-    // printf("fileName: %s\n", fileName);
-    // printf("Reg size: %d\n", reg.size);
-    // printf("my file: %s\n", reg.servants[0].my_file);
-    // printf("GUID: %d\n", reg.servants[0].GUID);
-
+    
     for(int i = 0; i < reg.size; i++){
         // printf("Got into for loop\n");
         if( strcmp(fileName ,reg.servants[i].my_file ) == 0 ){

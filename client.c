@@ -206,7 +206,7 @@ void connect_download(char targetFile[MSG_LEN]){
         printf("\nPORT: %d\n\n",DOWNLOAD_PORT);
     }
 
-    // strcpy(download_message, "");
+
     send(download_sock, targetFile, sizeof(targetFile), 0); // send target file
     printf("message sent \n");
     bzero(download_message,BUF_SIZE);
@@ -240,11 +240,10 @@ void broadcast(char target[10]){
 
     /* Create socket for sending/receiving datagrams */
     if ((broadcast_sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
-    //if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
        printf("socket() failed");
     }
-        //DieWithError("socket() failed");
+      
 
     /* Set socket to allow broadcast */
     broadcastPermission = 1;
@@ -272,8 +271,7 @@ void broadcast(char target[10]){
          {
              printf("sendto() sent a different number of bytes than expected");
          }
-             //DieWithError("sendto() sent a different number of bytes than expected");
-
+         
         sleep(1);   /* Avoids flooding the network */
     }
     /* NOT REACHED */
@@ -370,19 +368,10 @@ void* tcp_thread(void* arg){
     int choice;
     bool stay = true;
     while(stay){
-        // int valread = recv( sock , buffer, BUF_SIZE, 0);
-        // printf("Client 1 sending loop\n");
-        // send(sock , msg , strlen(msg) , 0);
-        // memset(msg, 0, MSG_LEN);                      //clear message
-        // printf("%s",buffer);                          //display message
-        // bzero(buffer, sizeof(buffer));                //flush buffer
-        // sleep(1);                                     //introduce delay or else loops too fast (?)
+
 
         choice = 0; //reset choice
         choice = menu();
-
-        // printf("Got choice\n");
-        // printf("Choice: %d\n", choice);
 
         switch(choice){
             case 1: //find file
@@ -519,11 +508,6 @@ int main(int argc, char const *argv[])
         printf("\ninsert file name\n");
         exit(0);
     }
-    //strcpy(my_data.my_file, argv[1]);
-    // do{
-    //     strcpy(my_data.my_file, argv[i]);
-    //     i++;
-    // }while(argv[i] != NULL){
 
     /*---------------------------------
      Creating socket file descriptor
@@ -583,13 +567,6 @@ int main(int argc, char const *argv[])
     Create/Join threads
     ---------------------*/
 
-    //printf("main(): creating input thread \n");
-    // rc = pthread_create(&threads[0], NULL, &input_thread, NULL);
-    // if(rc){
-    //     printf("Error: unable to create thread, %d \n", rc);
-    //     exit(-1);
-    // }
-    //printf("main(): creating message thread \n");
     rc = pthread_create(&threads[0], NULL, &tcp_thread, NULL);
     if(rc){
         printf("Error: unable to create thread, %d \n", rc);

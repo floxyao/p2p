@@ -150,12 +150,6 @@ void start_download(){
     printf("closing p2p connection. . .\n");
     close(download_sock);
     printf("press enter to continue\n");
-    // printf("\n====================================\n");
-    // printf("    1. Find file\n");
-    // printf("    2. Exit\n");
-    // printf("====================================\n");
-    // printf("Please enter the number of your choice: ");
-    // close(client_sock);
 }
 
 
@@ -251,16 +245,13 @@ void broadcast(char target[10]){
 
     /* Create socket for sending/receiving datagrams */
     if ((broadcast_sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
-    //if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
        printf("socket() failed");
-    }
-        //DieWithError("socket() failed");
+    };
 
     /* Set socket to allow broadcast */
     broadcastPermission = 1;
     if (setsockopt(broadcast_sock, SOL_SOCKET, SO_BROADCAST, (void *) &broadcastPermission,
-    //if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (void *) &broadcastPermission,
           sizeof(broadcastPermission)) < 0)
     {
        printf("setsockeopt() failed");
@@ -377,16 +368,13 @@ void* tcp_thread(void* arg){
     -----------------------------------*/
     fcntl(sock2, F_SETFL, O_NONBLOCK);
 
-		int choice;
+	int choice;
     bool stay = true;
     while(stay){
         
 
         choice = 0; //reset choice
         choice = menu();
-
-        // printf("Got choice\n");
-        // printf("Choice: %d\n", choice);
 
         switch(choice){
             case 1: //find file
@@ -572,8 +560,7 @@ int main(int argc, char const *argv[])
     ---------------------*/
     int rc;
     pthread_t threads[NUM_THREADS];
-    //printf("main(): creating input thread \n");
-    //printf("main(): creating message thread \n");
+
     rc = pthread_create(&threads[0], NULL, &tcp_thread, NULL);
     if(rc){
         printf("Error: unable to create thread, %d \n", rc);
