@@ -20,7 +20,7 @@
 #define NUM_THREADS 2
 
 
-int       server_fd, udp_fd, new_socket, new_socket2;
+int       server_fd, udp_fd, new_socket, new_socket2, unique_id;
 struct    sockaddr_in server_address, client_address;
 struct    ServantData rcv_data;
 int       addrlen = sizeof(server_address);
@@ -93,18 +93,20 @@ void* tcp_thread(void* arg){
             Register Client
         ----------------------*/
         printf("\nTCP Socket 1 Connected!\n");
+        unique_id = 0;
         struct ServantData rcv_data;
 
         recv(new_socket , &rcv_data, sizeof(rcv_data), 0);        // get obj
-        rcv_data.GUID = reg.size+1;
+        rcv_data.GUID = ++unique_id;
 
         time(&current_time);
         time_info = localtime(&current_time);
         strftime(rcv_data.time_string, sizeof(rcv_data.time_string), "%H:%M:%S", time_info);
 
         rcv_data.alive = TRUE;                                    // mark this client alive
+
         reg.servants[reg.size++] = rcv_data;
-        print(rcv_data.GUID-1);                                    // print client information
+        print(reg.size-1);                                    // print client information
 
         int n = send(new_socket, &rcv_data, sizeof(rcv_data), 0); // send back GUID
     }
@@ -126,7 +128,7 @@ void* tcp_thread(void* arg){
 
         recv(new_socket2 , &rcv_data, sizeof(rcv_data), 0);        // get obj
 
-        rcv_data.GUID = reg.size+1;                                // GUID = size of reg cause unique
+        rcv_data.GUID = ++unique_id;                               // GUID = size of reg cause unique
 
         time(&current_time);
         time_info = localtime(&current_time);
@@ -135,7 +137,7 @@ void* tcp_thread(void* arg){
         rcv_data.alive = TRUE;                                     // mark this client alive
         
         reg.servants[reg.size++] = rcv_data;
-        print(rcv_data.GUID-1);                                    // print client information
+        print(reg.size-1);                                         // print client information
   
         int m = send(new_socket2, &rcv_data, sizeof(rcv_data), 0); // send obj
     }
@@ -222,19 +224,35 @@ void* udp_thread(void* arg){
 
         int current_time = convert_to_seconds(_current_time);
 
-        /*  
+        /* - - - - - - - - - - - - - - - - - - - - - - - - - - 
             1. Gets the udp message from each client
             2. Check which client it came from
             3. If client is alive and less than x time, update
             4. Else remove from registry and mark dead
-        */
+         - - - - - - - - - - - - - - - - - - - - - - - - - - */
         for(int client_no=0; client_no<reg.size; client_no++){
-            if( alive(client_no) == TRUE && reg.servants[client_no].GUID != GUID ){
+            
+            if(reg.servants[client_no].GUID != GUID ){
                 int timestamp = convert_to_seconds(reg.servants[client_no].time_string);
 
                 if(abs(timestamp - current_time) >= END_TIME){
-                    reg.servants[client_no] = (struct ServantData){ .GUID = 0, .my_file = "", .time_string = "", .alive = FALSE };
-                    printf("\nremoving %d from registry\n",client_no+1);
+                    
+                    // copy array into new array without removed GUID
+                    struct ServantData *newRegistry = malloc(sizeof(reg.servants));
+
+                    // remove client from registry
+                    remove_client(client_no, newRegistry);
+                    --reg.size;
+
+                    // for(int i=0; i<reg.size; i++){
+                    //     printf("\n new %d", newRegistry[i].GUID);
+                    // }
+
+                    // clear original registry
+                    memset(reg.servants,0,sizeof(reg.servants));
+                    
+                    // copy and update new registry
+                    copy(reg.servants, newRegistry);
                 }
             }
             else{
