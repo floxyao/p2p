@@ -27,17 +27,17 @@
 #define MAXRECVSTRING 255  /* Longest string to receive */
 
 //global variables
-int       sock, udp_sock, broadcast_sock,broadcast_receive_sock, download_sock, broadcastPermission, brd_len, n;
 struct    sockaddr_in client_addr, serv_addr, broadcastAddr1,broadcastAddr2, download_addr;
 struct    ServantData my_data;
 socklen_t CLADDR_LEN = sizeof(client_addr);
 socklen_t down_sock_len = sizeof(download_addr);
+int       sock, udp_sock, broadcast_sock,broadcast_receive_sock, start_download_sock, 
+          receive_download_sock, broadcastPermission, brd_len, n;
 int       inet_pton(); //get rid of warning
-char      targetFile[MSG_LEN];
+// char      targetFile[MSG_LEN];
 char      buffer[BUF_SIZE] = {0};
 char      download_message[BUF_SIZE] = {0};
 char      guid[10];
-char      fileName[MSG_LEN];
 char      file[BUF_SIZE];
 char      *broadcastMessage;
 //thread data
@@ -50,11 +50,12 @@ pthread_t threads[NUM_THREADS];
 // downloads file from target client
 //==========================================================================
 void start_download(){
+
     // printf("got into start_download\n");
     /*---------------------------------
      Creating socket file descriptor
     ----------------------------------*/
-	if ((download_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+	if ((start_download_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	{
 		printf("\n Download Socket creation error \n");
 		return -1;
@@ -70,11 +71,11 @@ void start_download(){
 
     //reuse ports and addr
     int reuse = 1;
-    if (setsockopt(download_sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuse, sizeof(reuse)) < 0)
+    if (setsockopt(start_download_sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuse, sizeof(reuse)) < 0)
         perror("setsockopt(SO_REUSEADDR) failed");
 
     #ifdef SO_REUSEPORT
-        if (setsockopt(download_sock, SOL_SOCKET, SO_REUSEPORT, (const char*)&reuse, sizeof(reuse)) < 0)
+        if (setsockopt(start_download_sock, SOL_SOCKET, SO_REUSEPORT, (const char*)&reuse, sizeof(reuse)) < 0)
             perror("setsockopt(SO_REUSEPORT) failed");
     #endif
 
@@ -83,7 +84,7 @@ void start_download(){
       once you have a socket, bind
       it to a port on your machine
     --------------------------------------------*/
-	if (bind(download_sock, (struct sockaddr *)&download_addr, sizeof(download_addr))<0)
+	if (bind(start_download_sock, (struct sockaddr *)&download_addr, sizeof(download_addr))<0)
 	{
 		perror("tcp bind failed");
 		exit(EXIT_FAILURE);
@@ -95,7 +96,7 @@ void start_download(){
       listens for more incoming
       connections
     ------------------------------*/
-	if (listen(download_sock, 3) < 0)
+	if (listen(start_download_sock, 3) < 0)
 	{
 		perror("listen error");
 		exit(EXIT_FAILURE);
@@ -104,10 +105,14 @@ void start_download(){
         printf("\nTCP Listening...\n");
     }
 
+    // sleep(5);
+
+
+
     /*------------------------------------------------------------------------------
-     Accept client 1 connection
+     Accept client  connection
     -------------------------------------------------------------------------------*/
-	if ((download_sock = accept(download_sock, (struct sockaddr *)&download_addr,
+	if ((start_download_sock = accept(start_download_sock, (struct sockaddr *)&download_addr,
 					(socklen_t*)&down_sock_len)) < 0)
 	{
 		perror("accept error 1\n");
@@ -121,9 +126,9 @@ void start_download(){
 
         // time_t t = time(NULL);
 
-
+        char      targetFile[MSG_LEN];
         while(true){
-            int valread = recv(download_sock , download_message, BUF_SIZE, 0);   //check target file
+            int valread = recv(start_download_sock , download_message, BUF_SIZE, 0);   //check target file
 
             if(valread > 0){
                 strcpy(targetFile, download_message );
@@ -131,12 +136,13 @@ void start_download(){
                 // printf("Testing: %s\n", download_message);
                 bzero(download_message, BUF_SIZE); //clear buffer to re use
                 strcpy(download_message, "syn+ack");
-                send(download_sock, download_message, BUF_SIZE, 0);
+                send(start_download_sock, download_message, BUF_SIZE, 0);
                 printf("message: %s\n", download_message);
                 printf("Message sent\n");
                 // printf("valread: %d\n", valread);
                 bzero(download_message, BUF_SIZE);
-
+                memset(targetFile, 0, MSG_LEN); //clear msg for later use
+                close(start_download_sock);
                 break;
             }
         }
@@ -144,9 +150,10 @@ void start_download(){
 
         // int n = send(new_socket, &rcv_data, sizeof(rcv_data), 0); // send back GUID
     }
+    
 
-    printf("closing p2p connection. . .\n");
-    close(download_sock);
+    printf("closing p2p connection. . .please wait\n");
+    sleep(15); //give time for socket and port to open up again
     printf("press enter to continue\n");
 }
 
@@ -160,7 +167,7 @@ void connect_download(char targetFile[MSG_LEN]){
     /*---------------------------------
      Creating socket file descriptor
     ----------------------------------*/
-	if ((download_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+	if ((receive_download_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	{
 		printf("\n Socket creation error \n");
 		return -1;
@@ -195,7 +202,7 @@ void connect_download(char targetFile[MSG_LEN]){
      size      = size of addr
      Returns an integer to indicate success/failure
     -------------------------------------------------------*/
-	if (connect(download_sock, (struct sockaddr *)&download_addr, sizeof(download_addr)) < 0)
+	if (connect(receive_download_sock, (struct sockaddr *)&download_addr, sizeof(download_addr)) < 0)
 	{
 		printf("\np2p Connection Failed \n");
 		perror("Error: ");
@@ -206,25 +213,28 @@ void connect_download(char targetFile[MSG_LEN]){
         printf("\nPORT: %d\n\n",DOWNLOAD_PORT);
     }
 
-
-    send(download_sock, targetFile, sizeof(targetFile), 0); // send target file
+    printf("sending message. . .\n");
+    sleep(5);
+    send(receive_download_sock, targetFile, sizeof(targetFile), 0); // send target file
     printf("message sent \n");
     bzero(download_message,BUF_SIZE);
 
+    int valread;
     while(true){ //wait for message back
-        // printf("in while loop\n");
-        int valread = recv(download_sock, download_message, BUF_SIZE,0);
-        // printf("valread: %d\n",valread);
+        printf("in while loop\n");
+        valread = recv(receive_download_sock, download_message, BUF_SIZE,0);
+        printf("valread: %d\n",valread);
         if(valread > 0){
             printf("received response!\n");
             printf("Message: %s\n", download_message);
-            
-
+            bzero(download_message, BUF_SIZE);
+            close(receive_download_sock);
             break;
         }
     }
-    printf("closing p2p connection. . .\n");
-    close(download_sock);
+
+    printf("closing p2p connection. . .please wait\n");
+    sleep(15); //give time for ports and sockets to open up again
 }
 
 //==========================================================================
@@ -350,6 +360,10 @@ void* broadcastReceive(){
 void* tcp_thread(void* arg){
 
     int n = send(sock, &my_data, sizeof(my_data), 0);
+    int choice;
+    bool stay = true;
+    char      fileName[MSG_LEN];
+    char      targetFile[MSG_LEN];
     bzero(buffer, sizeof(buffer));
 
     while(my_data.GUID < 1){
@@ -365,8 +379,7 @@ void* tcp_thread(void* arg){
     -----------------------------------*/
     fcntl(sock, F_SETFL, O_NONBLOCK);
 
-    int choice;
-    bool stay = true;
+
     while(stay){
 
 
@@ -377,11 +390,22 @@ void* tcp_thread(void* arg){
             case 1: //find file
             {
 
+                while(true){ //make sure target isnt a file you already have
                 //get file name from user
                 printf("Please enter the name of the file: ");
                 fgets(fileName ,MSG_LEN, stdin);
                 sscanf(fileName, "%s", targetFile);
+                if(strcmp(targetFile,my_data.my_file) == 0){
+                    printf("Already have that file\n");
+                    continue;
+                }
+                else{
+                    break;
+                }
 
+                }
+
+                printf("target file: %s\n", targetFile);
                 //send rquested file to server
                 send(sock, targetFile, strlen(targetFile), 0);
 
@@ -469,7 +493,7 @@ void* udp_thread(void* arg){
     for(;;){
         // after connecting to UDP, flag every 60 seconds
 
-        sleep(15);
+        sleep(5);
 
 
         

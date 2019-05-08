@@ -163,8 +163,8 @@ void* tcp_thread(void* arg){
         int valread = recv( new_socket , tcp_buffer, BUF_SIZE, 0); //store requested file in tcp_buffer
         int valread2 = recv( new_socket2 , tcp_buffer2, BUF_SIZE, 0);
 
-        printf("\nvalread: %d\n", valread);
-        printf("\nvalread2: %d\n", valread2);
+        // printf("\nvalread: %d\n", valread);
+        // printf("\nvalread2: %d\n", valread2);
 
         //check if client wants to search for file
         if(valread > 0){
@@ -203,7 +203,7 @@ void* tcp_thread(void* arg){
 //================================================================================
 void* udp_thread(void* arg){
 
- char *hello = "Hello from server"; 
+    char *hello = "Hello from server"; 
 
     /*-----------------------------------------------------
      Creating UDP socket 
@@ -225,6 +225,10 @@ void* udp_thread(void* arg){
     server_address.sin_addr.s_addr = INADDR_ANY; 
     server_address.sin_port = htons(PORT); 
 
+    struct timeval read_timeout;
+    read_timeout.tv_sec = 0;
+    read_timeout.tv_usec = 50;
+    setsockopt(udp_fd, SOL_SOCKET, SO_RCVTIMEO, &read_timeout, sizeof read_timeout);
     /*-----------------------------------------------------
       UDP Bind
     ------------------------------------------------------*/
@@ -239,12 +243,22 @@ void* udp_thread(void* arg){
     ------------------------------------------------------*/
     
     for(;;){
-        n = recvfrom(udp_fd, (char *)udp_buffer, BUF_SIZE, MSG_WAITALL, (struct sockaddr *) &client_address, &len); 
-        udp_buffer[n] = '\0'; 
-        
-        printf("\n\n*ping* client[%s]", udp_buffer); 
-        int GUID = udp_buffer[0] - '0';                       
 
+        n = recvfrom(udp_fd, (char *)udp_buffer, BUF_SIZE, MSG_WAITALL, (struct sockaddr *) &client_address, &len); 
+        udp_buffer[n] = '\0';         
+
+        // if there's no udp message (recvfrom returns -1)
+        // just output a ".", else output the client ping
+        if(n == -1){
+            printf("\n\n."); 
+        }
+        else{
+            printf("\n\n*ping* client[%s]", udp_buffer);  
+        }
+        int GUID = udp_buffer[0] - '0';              
+
+        // this block allows the server to check the current 
+        // time against the most recent timestamp of a client
         char _current_time[9];
         time(&current_time);
         time_info = localtime(&current_time);
@@ -252,34 +266,47 @@ void* udp_thread(void* arg){
 
         int current_time = convert_to_seconds(_current_time);
 
-        /*  
+        /* - - - - - - - - - - - - - - - - - - - - - - - - - - 
             1. Gets the udp message from each client
             2. Check which client it came from
             3. If client is alive and less than x time, update
             4. Else remove from registry and mark dead
-        */
+         - - - - - - - - - - - - - - - - - - - - - - - - - - */
         for(int client_no=0; client_no<reg.size; client_no++){
-            if( alive(client_no) == TRUE && reg.servants[client_no].GUID != GUID ){
+            
+            if(reg.servants[client_no].GUID != GUID ){
                 int timestamp = convert_to_seconds(reg.servants[client_no].time_string);
 
                 if(abs(timestamp - current_time) >= END_TIME){
-                    reg.servants[client_no] = (struct ServantData){ .GUID = 0, .my_file = "", .time_string = "", .alive = FALSE };
-                    printf("\nremoving %d from registry\n",client_no+1);
+                    
+                    // copy array into new array without removed GUID
+                    struct ServantData *newRegistry = malloc(sizeof(reg.servants));
+
+                    // remove client from registry
+                    remove_client(client_no, newRegistry);
+                    --reg.size;
+
+                    // clear original registry
+                    memset(reg.servants,0,sizeof(reg.servants));
+                    
+                    // copy and update new registry
+                    copy(reg.servants, newRegistry);
                 }
             }
             else{
                 update_time(client_no);
-                printf(" @time ");  
-                puts(reg.servants[client_no].time_string);
+                //printf(" @time ");  
+                //puts(reg.servants[client_no].time_string);
             }
         }
         
         bzero(udp_buffer, sizeof(udp_buffer));
-        sleep(1);    
+        sleep(5);    
     }
     close(udp_fd); 
     pthread_exit(NULL);
 }
+
 
 //================================================================================
 // Main connects sockets, creates and join threads

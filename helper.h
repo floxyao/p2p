@@ -11,11 +11,11 @@
 #include <stdlib.h>
 #define TRUE 1
 #define FALSE 0
-#define END_TIME 30
+#define END_TIME 10
 #define SECONDS 60
 #define NUM_CLIENTS 2
 #define NUM_FILES 1
-#define MSG_LEN 100
+#define MSG_LEN 50
 #define BUF_SIZE 1024
 
 
@@ -173,4 +173,38 @@ int search_registry(char fileName[BUF_SIZE]){
 
     printf("exiting search reg\n");
     return GUID;
+}
+
+void copy(struct ServantData* dest, struct ServantData* src){
+    for(int i=0; i<reg.size; i++){
+        dest[i].GUID = src[i].GUID;
+        dest[i].alive = src[i].alive;
+        strcpy(dest[i].my_file, src[i].my_file);
+        strcpy(dest[i].time_string, src[i].time_string);
+    }
+}
+
+//================================================================================
+// function: remove_client
+// inputs: index of client to be removed, temporary new  array
+// this function uses the temporary new array to add all copies of
+// alive clients. the client to be removed is marked dead, so it 
+// doesn't get copied.
+//================================================================================
+void remove_client(int client_no, struct ServantData temp[NUM_CLIENTS]){
+    //struct ServantData temp[NUM_CLIENTS];
+
+    for(int i=0, j=0; i<reg.size; i++){
+        if(i == client_no){ // if this is the client, skip it 
+            printf("\nclient %d .... removing",reg.servants[client_no].GUID);
+            continue;
+        }
+        else{
+            temp[j].GUID = reg.servants[i].GUID;
+            temp[j].alive = reg.servants[i].alive;
+            strcpy(temp[j].my_file, reg.servants[i].my_file);
+            strcpy(temp[j].time_string, reg.servants[i].time_string);
+            j++;
+        }
+    }
 }
