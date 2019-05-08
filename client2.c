@@ -118,7 +118,7 @@ void* udp_thread(void* arg){
         // after connecting to UDP, flag every 60 seconds
 
         
-        sleep(15);
+        sleep(2);
 
 
         sprintf(guid, "%d", my_data.GUID); // convert int to char
