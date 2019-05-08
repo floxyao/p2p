@@ -9,7 +9,7 @@
 #include "time.h"
 #define TRUE 1
 #define FALSE 0
-#define END_TIME 30
+#define END_TIME 5
 #define SECONDS 60
 #define NUM_FILES 1
 #define MSG_LEN 100
@@ -41,17 +41,12 @@ void concat(char* p, char *q){
 // update timestamp of client
 //================================================================================
 void update_time(int index){
-    // time_t t = time(NULL);
-    // reg.servants[index].time->tm_hour = gmtime(&t)->tm_hour;
-    // reg.servants[index].time->tm_min = gmtime(&t)->tm_min;
-    // reg.servants[index].time->tm_sec = gmtime(&t)->tm_sec;
-
     time_t current_time;
     struct tm * time_info;
     time(&current_time);
     time_info = localtime(&current_time);
     strftime(reg.servants[index].time_string, sizeof(reg.servants[index].time_string), "%H:%M:%S", time_info);
-    //puts(reg.servants[index].time_string);                               // GUID = size of reg cause unique
+    //puts(reg.servants[index].time_string);    
 }
 
 //================================================================================
@@ -117,6 +112,40 @@ void print(int index){
 //================================================================================
 int alive(int index){
     return reg.servants[index].alive;
+}
+
+//================================================================================
+// function: remove_client
+// inputs: index of client to be removed, temporary new  array
+// this function uses the temporary new array to add all copies of
+// alive clients. the client to be removed is marked dead, so it 
+// doesn't get copied.
+//================================================================================
+void remove_client(int client_no, struct ServantData temp[NUM_CLIENTS]){
+    //struct ServantData temp[NUM_CLIENTS];
+
+    for(int i=0, j=0; i<reg.size; i++){
+        if(i == client_no){ // if this is the client, skip it 
+            printf("\nclient %d .... removing",i);
+            continue;
+        }
+        else{
+            temp[j].GUID = reg.servants[i].GUID;
+            temp[j].alive = reg.servants[i].alive;
+            strcpy(temp[j].my_file, reg.servants[i].my_file);
+            strcpy(temp[j].time_string, reg.servants[i].time_string);
+            j++;
+        }
+    }
+}
+
+void copy(struct ServantData* dest, struct ServantData* src){
+    for(int i=0; i<reg.size; i++){
+        dest[i].GUID = src[i].GUID;
+        dest[i].alive = src[i].alive;
+        strcpy(dest[i].my_file, src[i].my_file);
+        strcpy(dest[i].time_string, src[i].time_string);
+    }
 }
 
 //================================================================================
