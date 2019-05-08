@@ -106,7 +106,7 @@ void* tcp_thread(void* arg){
         rcv_data.alive = TRUE;                                    // mark this client alive
 
         reg.servants[reg.size++] = rcv_data;
-        print(reg.size-1);                                    // print client information
+        print(reg.size-1);                                       // print client information
 
         int n = send(new_socket, &rcv_data, sizeof(rcv_data), 0); // send back GUID
     }
@@ -197,6 +197,10 @@ void* udp_thread(void* arg){
     server_address.sin_addr.s_addr = INADDR_ANY; 
     server_address.sin_port = htons(PORT); 
 
+    struct timeval read_timeout;
+    read_timeout.tv_sec = 0;
+    read_timeout.tv_usec = 50;
+    setsockopt(udp_fd, SOL_SOCKET, SO_RCVTIMEO, &read_timeout, sizeof read_timeout);
     /*-----------------------------------------------------
       UDP Bind
     ------------------------------------------------------*/
@@ -211,12 +215,22 @@ void* udp_thread(void* arg){
     ------------------------------------------------------*/
     
     for(;;){
-        n = recvfrom(udp_fd, (char *)buffer, BUF_SIZE, MSG_WAITALL, (struct sockaddr *) &client_address, &len); 
-        buffer[n] = '\0'; 
-        
-        printf("\n\n*ping* client[%s]", buffer); 
-        int GUID = buffer[0] - '0';                       
 
+        n = recvfrom(udp_fd, (char *)buffer, BUF_SIZE, MSG_WAITALL, (struct sockaddr *) &client_address, &len); 
+        buffer[n] = '\0';         
+
+        // if there's no udp message (recvfrom returns -1)
+        // just output a ".", else output the client ping
+        if(n == -1){
+            printf("\n\n."); 
+        }
+        else{
+            printf("\n\n*ping* client[%s]", buffer);  
+        }
+        int GUID = buffer[0] - '0';              
+
+        // this block allows the server to check the current 
+        // time against the most recent timestamp of a client
         char _current_time[9];
         time(&current_time);
         time_info = localtime(&current_time);
@@ -244,10 +258,6 @@ void* udp_thread(void* arg){
                     remove_client(client_no, newRegistry);
                     --reg.size;
 
-                    // for(int i=0; i<reg.size; i++){
-                    //     printf("\n new %d", newRegistry[i].GUID);
-                    // }
-
                     // clear original registry
                     memset(reg.servants,0,sizeof(reg.servants));
                     
@@ -257,8 +267,8 @@ void* udp_thread(void* arg){
             }
             else{
                 update_time(client_no);
-                printf(" @time ");  
-                puts(reg.servants[client_no].time_string);
+                //printf(" @time ");  
+                //puts(reg.servants[client_no].time_string);
             }
         }
         
